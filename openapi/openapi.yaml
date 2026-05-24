@@ -1,0 +1,546 @@
+openapi: 3.1.0
+
+info:
+  title: GhostSwap Partners API
+  version: 1.0.0
+  summary: Server-to-server REST API for non-custodial crypto-to-crypto swaps.
+  description: |
+    Add no-KYC crypto swaps (1,600+ coins) to wallets, dApps, exchanges,
+    or payment flows. GhostSwap handles all upstream liquidity, signing,
+    and clearing — partners never touch signing keys. Partners earn a
+    0–4 % markup on every completed swap, paid out in USDT.
+
+    **Use this spec for**:
+
+    - ChatGPT Custom GPT / GPT Actions (paste the URL into the Actions tab)
+    - LangChain `OpenAPIToolkit.from_url()`
+    - LlamaIndex `RestAPIToolkit`
+    - Any function-calling agent that consumes OpenAPI 3.x
+    - Auto-generated SDKs via openapi-generator
+
+    For an LLM-friendly prose walkthrough, see https://partners.ghostswap.io/skill.md.
+    For deep docs, see https://partners.ghostswap.io/docs.
+  contact:
+    name: GhostSwap Partner support
+    url: https://partners.ghostswap.io
+    email: support@ghostswap.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://ghostswap.io/terms
+
+servers:
+  - url: https://partners-api.ghostswap.io
+    description: Production
+
+externalDocs:
+  description: Full developer docs (quickstart, guides, troubleshooting)
+  url: https://partners.ghostswap.io/docs
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: currencies
+    description: Discover supported coins.
+  - name: pairs
+    description: Per-pair min / max amount.
+  - name: addresses
+    description: Validate destination wallet addresses.
+  - name: quotes
+    description: Live price quotes (float or fixed-rate).
+  - name: swaps
+    description: Create and track swaps.
+  - name: meta
+    description: Health + version.
+
+paths:
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness probe
+      description: Returns service health + DB connectivity. Unmetered; safe for uptime monitoring at any frequency.
+      tags: [meta]
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/currencies:
+    get:
+      operationId: listCurrencies
+      summary: List supported currencies
+      description: |
+        Returns every supported coin with metadata (full name, blockchain, precision, icon URL, enabled flags).
+        Use `?lite=true` to get just an array of tickers — much smaller payload for autocomplete UIs.
+      tags: [currencies]
+      x-openai-isConsequential: false
+      parameters:
+        - name: lite
+          in: query
+          required: false
+          description: When `true`, return just tickers (e.g. `["btc","eth","ltc"]`). Default returns full metadata.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of currencies
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CurrenciesFullResponse'
+                  - $ref: '#/components/schemas/CurrenciesLiteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/pairs:
+    get:
+      operationId: getPair
+      summary: Get min/max for a single pair
+      description: Returns the float-mode and fixed-rate-mode min/max amounts for the given (from, to) pair.
+      tags: [pairs]
+      x-openai-isConsequential: false
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: Source currency ticker (lowercase). E.g. `btc`.
+          schema: { type: string, example: btc }
+        - name: to
+          in: query
+          required: true
+          description: Destination currency ticker (lowercase). E.g. `eth`.
+          schema: { type: string, example: eth }
+      responses:
+        '200':
+          description: Pair info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/addresses/validate:
+    post:
+      operationId: validateAddress
+      summary: Validate a wallet address for a given currency
+      description: |
+        Returns `{valid: true}` if the address looks correct for that chain.
+        Note: this validator is permissive — `POST /v1/swaps` runs a stricter chain-specific check
+        and may still reject an address that passes here. Always also handle creation-time validation errors.
+      tags: [addresses]
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currency, address]
+              properties:
+                currency:
+                  type: string
+                  description: Ticker (lowercase). E.g. `eth`.
+                  example: eth
+                address:
+                  type: string
+                  description: The wallet address to validate.
+                  example: '0x742d35Cc6634C0532925a3b844Bc9e7595f4dCD1'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  message: { type: string, description: 'Reason when valid=false.' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/quotes:
+    post:
+      operationId: getQuote
+      summary: Get a live quote for a swap
+      description: |
+        Returns the user-receive amount, rate, network fee, and min/max for a given pair + amount.
+        For a locked rate (guaranteed output amount), add `mode: "fixed"` — the response then includes
+        a short-lived `rateId` and `expiresAt`. Display `amountUserReceives` to your end-user, not raw `amountTo`.
+      tags: [quotes]
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+      responses:
+        '200':
+          description: Quote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/swaps:
+    post:
+      operationId: createSwap
+      summary: Create a new swap (idempotent)
+      description: |
+        Creates a swap and returns the deposit address (`payinAddress`) that the end-user funds.
+        **Requires the `Idempotency-Key` header** — UUID v4, one per logical "Confirm" click,
+        reused across HTTP retries of THAT click. Regenerating the key on retry creates duplicate swaps.
+
+        For a locked rate, send `mode: "fixed"` plus the `rateId` from a fixed quote. Float mode is the default.
+
+        On `upstream_error` (5xx), do NOT auto-retry — first call `GET /v1/swaps?limit=20` to check
+        whether the swap was created (look for your `partnerReferenceId`) before deciding whether to retry.
+      tags: [swaps]
+      x-openai-isConsequential: true
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID v4 — one per logical Confirm click, reused on retries.
+          example: a3f12c8e-4b27-4f1d-9e6c-1b5a8d8e7f9c
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapCreateRequest'
+      responses:
+        '201':
+          description: Swap created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          description: Conflict — `Idempotency-Key` reused with a different body, or fixed `rateId` expired (code `rate_expired` — re-quote and retry with a NEW key).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '422':
+          description: Unprocessable — we can't route this specific swap. Do not retry. Surface `message` verbatim.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+    get:
+      operationId: listSwaps
+      summary: List swaps for the authenticated org
+      description: Paginated list, most-recent first.
+      tags: [swaps]
+      x-openai-isConsequential: false
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swaps:
+                    type: array
+                    items: { $ref: '#/components/schemas/Swap' }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /v1/swaps/{id}:
+    get:
+      operationId: getSwap
+      summary: Get current status of a swap
+      description: |
+        Source of truth for swap status. Poll this every 10 s while the UI is visible, 30 s when backgrounded,
+        5 min on `hold` (AML review), and stop on terminal status (`finished`, `failed`, `refunded`,
+        `overdue`, `expired`).
+      tags: [swaps]
+      x-openai-isConsequential: false
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: The swap id returned from `createSwap`.
+      responses:
+        '200':
+          description: The swap record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Not found (wrong id or wrong org).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: 'public_key:secret'
+      description: |
+        `Authorization: Bearer ${GHOSTSWAP_PUBLIC_KEY}:${GHOSTSWAP_SECRET}` — single colon between the two values.
+        Both come from your /dashboard/api-credentials page after admin approval.
+
+  schemas:
+
+    HealthResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        db: { type: string, example: ok }
+        latency_ms: { type: number }
+        version: { type: string }
+        env: { type: string, example: production }
+
+    Currency:
+      type: object
+      properties:
+        ticker: { type: string, example: btc }
+        fullName: { type: string, example: Bitcoin }
+        enabled: { type: boolean }
+        enabledFrom: { type: boolean }
+        enabledTo: { type: boolean }
+        payinConfirmations: { type: integer }
+        blockchain: { type: string, example: bitcoin }
+        blockchainPrecision: { type: integer }
+        image:
+          type: string
+          nullable: true
+          description: 'Icon URL; may be null — render a fallback (initial-letter circle).'
+
+    CurrenciesFullResponse:
+      type: object
+      properties:
+        currencies:
+          type: array
+          items: { $ref: '#/components/schemas/Currency' }
+
+    CurrenciesLiteResponse:
+      type: object
+      properties:
+        currencies:
+          type: array
+          items: { type: string }
+          example: [btc, eth, ltc, usdt, xrp]
+
+    PairResponse:
+      type: object
+      properties:
+        pair:
+          type: object
+          properties:
+            from: { type: string }
+            to: { type: string }
+            minAmountFloat: { type: string, description: 'Decimal string. Min for float-mode swaps.' }
+            maxAmountFloat: { type: string }
+            minAmountFixed: { type: string, description: 'Decimal string. Min for fixed-rate swaps.' }
+            maxAmountFixed: { type: string }
+
+    QuoteRequest:
+      type: object
+      required: [from, to, amountFrom]
+      properties:
+        from: { type: string, example: btc }
+        to: { type: string, example: eth }
+        amountFrom:
+          type: string
+          description: Source amount as a decimal string. Strings (not floats) preserve precision.
+          example: '0.01'
+        mode:
+          type: string
+          enum: [float, fixed]
+          default: float
+          description: '`fixed` locks the rate via a short-lived `rateId` in the response.'
+
+    Quote:
+      type: object
+      properties:
+        from: { type: string }
+        to: { type: string }
+        amountFrom: { type: string }
+        amountTo: { type: string, description: 'Gross destination amount before networkFee.' }
+        networkFee: { type: string }
+        amountUserReceives:
+          type: string
+          description: '`amountTo - networkFee` — DISPLAY THIS to the user, not amountTo.'
+        rate: { type: string }
+        fee: { type: string, nullable: true, description: 'GhostSwap fee component (float only; null for fixed).' }
+        min: { type: string }
+        max: { type: string }
+        mode: { type: string, enum: [float, fixed] }
+        rateId:
+          type: string
+          nullable: true
+          description: 'Present only when mode=fixed — short-lived (~60 s) token. Pass to createSwap.'
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Present only when mode=fixed.'
+
+    QuoteResponse:
+      type: object
+      properties:
+        quote: { $ref: '#/components/schemas/Quote' }
+
+    SwapCreateRequest:
+      type: object
+      required: [from, to, amountFrom, address]
+      properties:
+        from: { type: string, example: btc }
+        to: { type: string, example: eth }
+        amountFrom: { type: string, example: '0.01' }
+        address:
+          type: string
+          description: User's destination wallet address (where they will receive `to` currency).
+          example: '0x742d35Cc6634C0532925a3b844Bc9e7595f4dCD1'
+        refundAddress:
+          type: string
+          description: |
+            User's source wallet on the `from` chain (where funds return if the swap fails).
+            Optional for float; REQUIRED for fixed. Strongly recommended either way. Never send empty string — omit instead.
+          example: 'bc1q9h3z0xmlf6rzc2x3t8qhxn0kv6qxvxx7vp8wzz'
+        partnerReferenceId:
+          type: string
+          description: Your own internal order/transaction id. Useful for correlating swaps with your DB.
+          maxLength: 120
+        mode:
+          type: string
+          enum: [float, fixed]
+          default: float
+        rateId:
+          type: string
+          description: 'Required when mode=fixed. The token from a fixed quote.'
+
+    Swap:
+      type: object
+      properties:
+        id: { type: string, example: htpi6bqnazl7hbjd, description: 'Canonical swap id. Same identifier in your records, GhostSwap records, and upstream provider records.' }
+        providerSwapId: { type: string, description: 'Identical to id for new swaps. Kept for backwards compat.' }
+        status:
+          type: string
+          enum: [waiting, confirming, exchanging, sending, finished, failed, refunded, overdue, expired, hold]
+          description: |
+            Terminal: finished | failed | refunded | overdue | expired.
+            `hold` = AML/KYC review (user-facing — direct end-user to support@ghostswap.io; slow polling to 5 min).
+        from: { type: string }
+        to: { type: string }
+        amountFrom: { type: string }
+        amountExpectedTo: { type: string }
+        networkFee: { type: string, nullable: true }
+        rate: { type: string, nullable: true }
+        payinAddress: { type: string, description: 'Display to user — they send amountFrom of `from` to this address.' }
+        payoutAddress: { type: string }
+        refundAddress: { type: string, nullable: true }
+        partnerReferenceId: { type: string, nullable: true }
+        mode: { type: string, enum: [float, fixed] }
+        payTill: { type: string, format: date-time, nullable: true, description: 'Deadline for fixed-rate deposits (null for float).' }
+        createdAt: { type: string, format: date-time }
+
+    SwapResponse:
+      type: object
+      properties:
+        swap: { $ref: '#/components/schemas/Swap' }
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [type, code, message]
+          properties:
+            type:
+              type: string
+              enum: [validation_error, authentication_error, authorization_error, not_found, conflict, unprocessable, rate_limit_error, upstream_error, internal_error]
+            code: { type: string, example: amount_below_min }
+            message: { type: string, example: 'Minimum amountFrom is 0.0008' }
+            param: { type: string, nullable: true, example: amountFrom }
+            upstream_code: { type: integer, nullable: true }
+            retry_after_ms: { type: integer, nullable: true }
+
+  responses:
+
+    Unauthenticated:
+      description: Missing or invalid Bearer credentials.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+    ValidationError:
+      description: Request body / query is invalid. Show `error.message` to the user.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+    RateLimited:
+      description: Rate limit exceeded. Read `Retry-After` (seconds), sleep, retry. If retrying createSwap, reuse the same Idempotency-Key.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying.
+        RateLimit-Limit:
+          schema: { type: string }
+        RateLimit-Remaining:
+          schema: { type: string }
+        RateLimit-Reset:
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+    UpstreamError:
+      description: Transient upstream failure. Safe to retry once on read endpoints. On createSwap, first call listSwaps to check whether the swap was created.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }

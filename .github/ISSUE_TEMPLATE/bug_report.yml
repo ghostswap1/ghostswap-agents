@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a defect in the MCP server, OpenAPI spec, skill, or any rule file.
+labels: ['bug', 'triage']
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing the bug.
+      placeholder: 'create_swap returns 500 when refundAddress is empty string.'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      description: Where you encountered the bug.
+      options:
+        - MCP server (@ghostswap/mcp)
+        - OpenAPI spec
+        - SKILL.md
+        - AGENTS.md
+        - Cursor rules (.cursor/rules)
+        - GitHub Copilot instructions
+        - Windsurf rules
+        - ChatGPT GPT Action setup
+        - README / install instructions
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: runtime
+    attributes:
+      label: Runtime / client
+      description: 'Which AI client + version. e.g. "Claude Desktop 0.7.10 on macOS 14.5", "Cursor 0.42 on Windows 11", "ChatGPT Custom GPT".'
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Configure MCP server with credentials
+        2. Call tool `create_swap` with args { … }
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the X-Request-Id header if the issue is on the API side.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / stack traces
+      render: shell
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I'm using the latest release of this repo and the latest @ghostswap/mcp on npm.
+          required: true
+        - label: I've redacted any partner credentials (gspk_live_…, gssk_live_…) from logs.
+          required: true
+        - label: This is not a security vulnerability (security reports go to support@ghostswap.io — see SECURITY.md).
+          required: true

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ghostswap": {
+      "command": "npx",
+      "args": ["-y", "@ghostswap/mcp"],
+      "env": {
+        "GHOSTSWAP_PUBLIC_KEY": "${GHOSTSWAP_PUBLIC_KEY}",
+        "GHOSTSWAP_SECRET": "${GHOSTSWAP_SECRET}"
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+title: ghostswap-agents — multi-LLM agent integration pack for the GhostSwap Partners API
+message: If you use this software, please cite it using these metadata.
+type: software
+authors:
+  - name: GhostSwap
+    website: 'https://ghostswap.io'
+repository-code: 'https://github.com/ghostswap1/ghostswap-agents'
+url: 'https://ghostswap.io'
+abstract: >-
+  An open-source distribution pack that lets developers integrate the
+  GhostSwap Partners API into Claude, ChatGPT, Cursor, Windsurf,
+  Gemini, GitHub Copilot, Continue.dev, OpenAI Agents SDK, LangChain,
+  LlamaIndex, and any Model Context Protocol (MCP) client. Bundles
+  an MCP server, an Anthropic Agent Skill, an OpenAPI 3.1
+  specification, AGENTS.md cross-tool instructions, Cursor project
+  rules, GitHub Copilot custom instructions, Windsurf Cascade rules,
+  and a ChatGPT GPT Action setup guide.
+keywords:
+  - crypto
+  - swap
+  - exchange
+  - no-kyc
+  - defi
+  - mcp
+  - mcp-server
+  - model-context-protocol
+  - openapi
+  - claude
+  - cursor
+  - chatgpt
+  - gpt-actions
+  - langchain
+  - llamaindex
+  - agents-md
+  - ai-agent
+  - ghostswap
+license: MIT
+version: 1.0.0
+date-released: 2026-05-25

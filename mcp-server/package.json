@@ -1,0 +1,54 @@
+{
+  "name": "@ghostswap/mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for the GhostSwap Partners API — no-KYC crypto-to-crypto swaps. Compatible with Claude Desktop, Cursor, Windsurf, Continue.dev, OpenAI Agents SDK, Vercel AI SDK, and any MCP client.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ghostswap",
+    "crypto",
+    "swap",
+    "exchange",
+    "claude",
+    "cursor",
+    "windsurf",
+    "no-kyc"
+  ],
+  "author": "GhostSwap (https://partners.ghostswap.io)",
+  "license": "MIT",
+  "homepage": "https://partners.ghostswap.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ghostswap1/ghostswap-agents.git",
+    "directory": "mcp-server"
+  },
+  "bugs": "https://github.com/ghostswap1/ghostswap-agents/issues",
+  "type": "module",
+  "bin": {
+    "ghostswap-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "manifest.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

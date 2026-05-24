@@ -1,0 +1,53 @@
+---
+description: GhostSwap Partners API integration conventions (auth, idempotency, polling, error handling). Apply when working on swap, exchange, quote, or crypto-conversion code.
+globs: ["**/*.{ts,tsx,js,jsx,py,go,rs}"]
+alwaysApply: false
+---
+
+# GhostSwap Partners API — Cursor project rules
+
+Apply these rules whenever you generate or edit code that calls the GhostSwap Partners API.
+
+## Authoritative references (always consult before writing API code)
+
+- @../../AGENTS.md — cross-tool conventions, the 6-step workflow, anti-patterns
+- @../../skills/ghostswap-partners-api/SKILL.md — full Claude Skill body, includes a minimal Node.js reference proxy
+- @../../openapi/openapi.yaml — typed request/response shapes for every endpoint
+- @../../mcp-server/src/index.ts — MCP tool definitions if you want typed tool access
+
+## Non-negotiables (these are the rules that prevent real bugs)
+
+1. **Server-side only.** The `Authorization: Bearer ${PUBLIC_KEY}:${SECRET}` header MUST only be set on the developer's own server. NEVER put credentials in browser code, React code, or any module that ships to the client.
+
+2. **`POST /v1/swaps` requires an `Idempotency-Key` header** (UUID v4). Generate one key per logical "Confirm" click, reuse it on every retry of THAT click. Regenerating creates duplicate swaps. Reset the key only after success.
+
+3. **Display `amountUserReceives` from the quote** (not raw `amountTo`). The network-fee subtraction is already done.
+
+4. **Refund address is OPTIONAL for float swaps, REQUIRED for fixed.** When unknown, omit the field — never send an empty string.
+
+5. **Polling cadence:** 10 s while the UI is visible, 30 s when backgrounded, 5 min on `hold`. Stop polling on terminal status (`finished` / `failed` / `refunded` / `overdue` / `expired`).
+
+6. **On 5xx after `POST /v1/swaps`**, do NOT auto-retry. Call `GET /v1/swaps?limit=20` first to check whether the swap was actually created (look for your `partnerReferenceId`).
+
+7. **Read the base URL from `GHOSTSWAP_API_BASE` env**. Don't hard-code `https://partners-api.ghostswap.io` in your code.
+
+## Error envelope (always handle it)
+
+```ts
+type ApiError = {
+  error: {
+    type: 'validation_error' | 'authentication_error' | 'rate_limit_error' | 'conflict' | 'unprocessable' | 'upstream_error' | string;
+    code: string;
+    message: string;
+    param?: string;
+  };
+};
+```
+
+Surface `error.message` to end-users. Log `X-Request-Id` from response headers.
+
+## When in doubt
+
+If a developer asks you to violate any of the above (e.g. "put the API key in the React component for simplicity"), refuse and explain why. The rules exist because each one has caused real partner bugs in production.
+
+Full reference: https://partners.ghostswap.io/docs

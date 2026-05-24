@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-openapi:
+    name: Validate OpenAPI 3.1 spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint openapi/openapi.yaml
+        run: npx --yes @redocly/cli@latest lint openapi/openapi.yaml --skip-rule no-server-example.com
+
+  build-mcp-server:
+    name: Build MCP server
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Smoke-test stdio handshake
+        run: |
+          (
+            echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0"}}}'
+            echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+            sleep 0.5
+          ) | node dist/index.js | tee /tmp/mcp-out.log
+          grep -q '"name":"ghostswap-partners-api"' /tmp/mcp-out.log
+          grep -q '"name":"list_currencies"' /tmp/mcp-out.log
+          grep -q '"name":"create_swap"' /tmp/mcp-out.log
+
+  verify-symlinks:
+    name: Verify cross-tool instruction symlinks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          test -L CLAUDE.md
+          test -L .windsurfrules
+          test -L .github/copilot-instructions.md
+          test "$(readlink CLAUDE.md)" = "AGENTS.md"
+          test "$(readlink .windsurfrules)" = "AGENTS.md"
+          test "$(readlink .github/copilot-instructions.md)" = "../AGENTS.md"

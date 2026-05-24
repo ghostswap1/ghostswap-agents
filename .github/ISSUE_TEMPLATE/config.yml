@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: API question (not specific to this repo)
+    url: https://partners.ghostswap.io/docs
+    about: For questions about the GhostSwap Partners REST API itself.
+  - name: Partner support
+    url: https://t.me/ghostswap1
+    about: Account, credential, or payout questions go to Telegram support.
+  - name: Email support
+    url: mailto:support@ghostswap.io
+    about: Anything that needs a human reply.
+  - name: Security vulnerability
+    url: https://github.com/ghostswap1/ghostswap-agents/security/advisories/new
+    about: Private security disclosure (do not open a public issue).

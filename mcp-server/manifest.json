@@ -1,0 +1,64 @@
+{
+  "dxt_version": "0.1",
+  "name": "ghostswap-partners-api",
+  "display_name": "GhostSwap Partners",
+  "version": "1.0.0",
+  "description": "Add no-KYC crypto-to-crypto swaps (1,600+ coins) to any AI agent via the GhostSwap Partners API.",
+  "long_description": "Model Context Protocol server for the GhostSwap Partners API. Lets Claude (Desktop / Code / .ai) and any other MCP client list currencies, quote swap rates, validate addresses, create idempotent swaps, and poll status. Auth uses a partner-issued Bearer token (`gspk_live_…:gssk_live_…`) read from env vars.",
+  "author": {
+    "name": "GhostSwap",
+    "url": "https://partners.ghostswap.io"
+  },
+  "homepage": "https://partners.ghostswap.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ghostswap1/ghostswap-agents"
+  },
+  "license": "MIT",
+  "keywords": ["crypto", "swap", "exchange", "no-kyc", "defi", "mcp"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "GHOSTSWAP_PUBLIC_KEY": "${user_config.public_key}",
+        "GHOSTSWAP_SECRET": "${user_config.secret}",
+        "GHOSTSWAP_API_BASE": "${user_config.api_base}"
+      }
+    }
+  },
+  "user_config": {
+    "public_key": {
+      "type": "string",
+      "title": "Public key",
+      "description": "Your GhostSwap partner public key (looks like `gspk_live_…`). Get it from https://partners.ghostswap.io/dashboard/api-credentials.",
+      "required": true,
+      "sensitive": false
+    },
+    "secret": {
+      "type": "string",
+      "title": "Secret",
+      "description": "Your GhostSwap partner secret (looks like `gssk_live_…`). Reveal it via the audit-logged Reveal button on the credentials page.",
+      "required": true,
+      "sensitive": true
+    },
+    "api_base": {
+      "type": "string",
+      "title": "API base URL",
+      "description": "Override only if pointing at a non-production environment. Defaults to https://partners-api.ghostswap.io.",
+      "default": "https://partners-api.ghostswap.io",
+      "required": false
+    }
+  },
+  "tools": [
+    { "name": "list_currencies", "description": "List supported coins." },
+    { "name": "get_pair", "description": "Get min/max for a pair." },
+    { "name": "validate_address", "description": "Validate a wallet address." },
+    { "name": "get_quote", "description": "Get a live swap quote." },
+    { "name": "create_swap", "description": "Create an idempotent swap." },
+    { "name": "get_swap", "description": "Poll swap status." },
+    { "name": "list_swaps", "description": "List swaps for the org." }
+  ]
+}

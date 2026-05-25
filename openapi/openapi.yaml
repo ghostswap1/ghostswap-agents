@@ -355,8 +355,7 @@ components:
         blockchain: { type: string, example: bitcoin }
         blockchainPrecision: { type: integer }
         image:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: 'Icon URL; may be null — render a fallback (initial-letter circle).'
 
     CurrenciesFullResponse:
@@ -415,18 +414,16 @@ components:
           type: string
           description: '`amountTo - networkFee` — DISPLAY THIS to the user, not amountTo.'
         rate: { type: string }
-        fee: { type: string, nullable: true, description: 'GhostSwap fee component (float only; null for fixed).' }
+        fee: { type: [string, 'null'], description: 'GhostSwap fee component (float only; null for fixed).' }
         min: { type: string }
         max: { type: string }
         mode: { type: string, enum: [float, fixed] }
         rateId:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: 'Present only when mode=fixed — short-lived (~60 s) token. Pass to createSwap.'
         expiresAt:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: 'Present only when mode=fixed.'
 
     QuoteResponse:
@@ -478,14 +475,14 @@ components:
         to: { type: string }
         amountFrom: { type: string }
         amountExpectedTo: { type: string }
-        networkFee: { type: string, nullable: true }
-        rate: { type: string, nullable: true }
+        networkFee: { type: [string, 'null'] }
+        rate: { type: [string, 'null'] }
         payinAddress: { type: string, description: 'Display to user — they send amountFrom of `from` to this address.' }
         payoutAddress: { type: string }
-        refundAddress: { type: string, nullable: true }
-        partnerReferenceId: { type: string, nullable: true }
+        refundAddress: { type: [string, 'null'] }
+        partnerReferenceId: { type: [string, 'null'] }
         mode: { type: string, enum: [float, fixed] }
-        payTill: { type: string, format: date-time, nullable: true, description: 'Deadline for fixed-rate deposits (null for float).' }
+        payTill: { type: [string, 'null'], format: date-time, description: 'Deadline for fixed-rate deposits (null for float).' }
         createdAt: { type: string, format: date-time }
 
     SwapResponse:
@@ -505,9 +502,9 @@ components:
               enum: [validation_error, authentication_error, authorization_error, not_found, conflict, unprocessable, rate_limit_error, upstream_error, internal_error]
             code: { type: string, example: amount_below_min }
             message: { type: string, example: 'Minimum amountFrom is 0.0008' }
-            param: { type: string, nullable: true, example: amountFrom }
-            upstream_code: { type: integer, nullable: true }
-            retry_after_ms: { type: integer, nullable: true }
+            param: { type: [string, 'null'], example: amountFrom }
+            upstream_code: { type: [integer, 'null'] }
+            retry_after_ms: { type: [integer, 'null'] }
 
   responses:
 

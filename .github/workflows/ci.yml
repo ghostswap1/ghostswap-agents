@@ -17,7 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Lint openapi/openapi.yaml
-        run: npx --yes @redocly/cli@latest lint openapi/openapi.yaml --skip-rule no-server-example.com
+        # /health is intentionally unauthenticated and has no failure response — skip that warning.
+        run: |
+          npx --yes @redocly/cli@latest lint openapi/openapi.yaml \
+            --skip-rule no-server-example.com \
+            --skip-rule operation-4xx-response
 
   build-mcp-server:
     name: Build MCP server

@@ -533,8 +533,10 @@
             "type": "integer"
           },
           "image": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Icon URL; may be null \u2014 render a fallback (initial-letter circle)."
           }
         }
@@ -657,8 +659,10 @@
             "type": "string"
           },
           "fee": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "GhostSwap fee component (float only; null for fixed)."
           },
           "min": {
@@ -675,14 +679,18 @@
             ]
           },
           "rateId": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Present only when mode=fixed \u2014 short-lived (~60 s) token. Pass to createSwap."
           },
           "expiresAt": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
-            "nullable": true,
             "description": "Present only when mode=fixed."
           }
         }
@@ -786,12 +794,16 @@
             "type": "string"
           },
           "networkFee": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "rate": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payinAddress": {
             "type": "string",
@@ -801,12 +813,16 @@
             "type": "string"
           },
           "refundAddress": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "partnerReferenceId": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "mode": {
             "type": "string",
@@ -816,9 +832,11 @@
             ]
           },
           "payTill": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
-            "nullable": true,
             "description": "Deadline for fixed-rate deposits (null for float)."
           },
           "createdAt": {
@@ -869,17 +887,23 @@
                 "example": "Minimum amountFrom is 0.0008"
               },
               "param": {
-                "type": "string",
-                "nullable": true,
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "example": "amountFrom"
               },
               "upstream_code": {
-                "type": "integer",
-                "nullable": true
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "retry_after_ms": {
-                "type": "integer",
-                "nullable": true
+                "type": [
+                  "integer",
+                  "null"
+                ]
               }
             }
           }

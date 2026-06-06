@@ -17,7 +17,7 @@ body:
       label: Which surface
       description: Where you encountered the bug.
       options:
-        - MCP server (@ghostswap/mcp)
+        - MCP server (@ghostswapio/mcp)
         - OpenAPI spec
         - SKILL.md
         - AGENTS.md
@@ -75,7 +75,7 @@ body:
     attributes:
       label: Confirmations
       options:
-        - label: I'm using the latest release of this repo and the latest @ghostswap/mcp on npm.
+        - label: I'm using the latest release of this repo and the latest @ghostswapio/mcp on npm.
           required: true
         - label: I've redacted any partner credentials (gspk_live_…, gssk_live_…) from logs.
           required: true

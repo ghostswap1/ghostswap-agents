@@ -15,7 +15,7 @@
  * callers should pass a stable key tied to the user's logical "confirm"
  * action so retries deduplicate correctly. The README documents this.
  *
- * Transport: stdio (the default for MCP). Run via `npx -y @ghostswap/mcp`.
+ * Transport: stdio (the default for MCP). Run via `npx -y @ghostswapio/mcp`.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -75,7 +75,7 @@ async function gs(path: string, opts: FetchOptions = {}): Promise<unknown> {
     Authorization: AUTH_HEADER,
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'User-Agent': '@ghostswap/mcp/1.0.0',
+    'User-Agent': '@ghostswapio/mcp/1.0.0',
   };
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
 

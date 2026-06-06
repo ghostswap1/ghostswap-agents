@@ -46,7 +46,7 @@ Add to `~/.claude/claude_desktop_config.json`:
   "mcpServers": {
     "ghostswap": {
       "command": "npx",
-      "args": ["-y", "@ghostswap/mcp"],
+      "args": ["-y", "@ghostswapio/mcp"],
       "env": {
         "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
         "GHOSTSWAP_SECRET": "gssk_live_..."
@@ -85,7 +85,7 @@ Full canonical SKILL.md also mirrored at <https://partners.ghostswap.io/skill.md
   "mcpServers": {
     "ghostswap": {
       "command": "npx",
-      "args": ["-y", "@ghostswap/mcp"],
+      "args": ["-y", "@ghostswapio/mcp"],
       "env": {
         "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
         "GHOSTSWAP_SECRET": "gssk_live_..."
@@ -115,7 +115,7 @@ Add to `~/.continue/config.yaml`:
 mcpServers:
   - name: ghostswap
     command: npx
-    args: ["-y", "@ghostswap/mcp"]
+    args: ["-y", "@ghostswapio/mcp"]
     env:
       GHOSTSWAP_PUBLIC_KEY: gspk_live_...
       GHOSTSWAP_SECRET: gssk_live_...
@@ -177,7 +177,7 @@ from agents.mcp import MCPServerStdio
 ghostswap_mcp = MCPServerStdio(
     params={
         "command": "npx",
-        "args": ["-y", "@ghostswap/mcp"],
+        "args": ["-y", "@ghostswapio/mcp"],
         "env": {
             "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
             "GHOSTSWAP_SECRET": "gssk_live_...",
@@ -203,7 +203,7 @@ import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
 const client = await experimental_createMCPClient({
   transport: new Experimental_StdioMCPTransport({
     command: 'npx',
-    args: ['-y', '@ghostswap/mcp'],
+    args: ['-y', '@ghostswapio/mcp'],
     env: { GHOSTSWAP_PUBLIC_KEY: '…', GHOSTSWAP_SECRET: '…' },
   }),
 });
@@ -234,7 +234,7 @@ toolkit = OpenAPIToolkit.from_llm(
 )
 ```
 
-**Via MCP** (cleaner — uses the @ghostswap/mcp server):
+**Via MCP** (cleaner — uses the @ghostswapio/mcp server):
 
 ```python
 from langchain_mcp_adapters.client import MultiServerMCPClient
@@ -242,7 +242,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 client = MultiServerMCPClient({
     "ghostswap": {
         "command": "npx",
-        "args": ["-y", "@ghostswap/mcp"],
+        "args": ["-y", "@ghostswapio/mcp"],
         "env": {
             "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
             "GHOSTSWAP_SECRET": "gssk_live_...",
@@ -261,7 +261,7 @@ tools = await client.get_tools()
 from llama_index.tools.mcp import McpToolSpec, BasicMCPClient
 
 mcp_client = BasicMCPClient(
-    "npx", args=["-y", "@ghostswap/mcp"],
+    "npx", args=["-y", "@ghostswapio/mcp"],
     env={"GHOSTSWAP_PUBLIC_KEY": "...", "GHOSTSWAP_SECRET": "..."},
 )
 tools = McpToolSpec(client=mcp_client).to_tool_list()
@@ -276,7 +276,7 @@ Or use the [OpenAPI spec](openapi/openapi.yaml) with `RestAPIToolSpec`.
 The server is a standard stdio MCP server. Any client that speaks MCP v2024-11-05 works:
 
 ```bash
-npx -y @ghostswap/mcp
+npx -y @ghostswapio/mcp
 ```
 
 Pass `GHOSTSWAP_PUBLIC_KEY` and `GHOSTSWAP_SECRET` via env vars.
@@ -320,7 +320,7 @@ ghostswap-agents/
 ├── openapi/
 │   ├── openapi.yaml                                ← OpenAPI 3.1 (source of truth)
 │   └── openapi.json                                ← Same, JSON
-├── mcp-server/                                     ← Published as @ghostswap/mcp on npm
+├── mcp-server/                                     ← Published as @ghostswapio/mcp on npm
 │   ├── src/index.ts
 │   ├── package.json
 │   ├── manifest.json                               ← DXT/MCPB for one-click Claude Desktop
@@ -374,7 +374,7 @@ This repo is a thin distribution layer — it does not host the API. The actual 
 
 ### Is the MCP server "official"?
 
-Yes — published by the GhostSwap team to <https://github.com/ghostswap1/ghostswap-agents> and to npm as [`@ghostswap/mcp`](https://www.npmjs.com/package/@ghostswap/mcp). MIT-licensed.
+Yes — published by the GhostSwap team to <https://github.com/ghostswap1/ghostswap-agents> and to npm as [`@ghostswapio/mcp`](https://www.npmjs.com/package/@ghostswapio/mcp). MIT-licensed.
 
 ### Can I self-host the MCP server?
 
@@ -453,7 +453,7 @@ End-users who click get a 30-day cookie attribution; any swap they complete on g
 ```bash
 git pull            # in your local clone
 # Or, for the npm package:
-npm update -g @ghostswap/mcp
+npm update -g @ghostswapio/mcp
 # Or, for the Claude Code plugin:
 /plugin update ghostswap-partners-api
 ```

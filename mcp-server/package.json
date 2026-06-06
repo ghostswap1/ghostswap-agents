@@ -1,5 +1,5 @@
 {
-  "name": "@ghostswap/mcp",
+  "name": "@ghostswapio/mcp",
   "version": "1.0.0",
   "description": "Model Context Protocol (MCP) server for the GhostSwap Partners API — no-KYC crypto-to-crypto swaps. Compatible with Claude Desktop, Cursor, Windsurf, Continue.dev, OpenAI Agents SDK, Vercel AI SDK, and any MCP client.",
   "keywords": [
@@ -20,13 +20,13 @@
   "homepage": "https://partners.ghostswap.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ghostswap1/ghostswap-agents.git",
+    "url": "git+https://github.com/ghostswap1/ghostswap-agents.git",
     "directory": "mcp-server"
   },
   "bugs": "https://github.com/ghostswap1/ghostswap-agents/issues",
   "type": "module",
   "bin": {
-    "ghostswap-mcp": "./dist/index.js"
+    "ghostswap-mcp": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [

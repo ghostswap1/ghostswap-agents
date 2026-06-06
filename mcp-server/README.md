@@ -1,4 +1,4 @@
-# @ghostswap/mcp — Model Context Protocol server
+# @ghostswapio/mcp — Model Context Protocol server
 
 Drop the GhostSwap Partners API into Claude Desktop, Cursor, Windsurf, Continue.dev, OpenAI Agents SDK, Vercel AI SDK, Gemini, or any MCP client in one line.
 
@@ -36,7 +36,7 @@ Add to `~/.claude/claude_desktop_config.json` (Desktop) or your Claude Code MCP 
   "mcpServers": {
     "ghostswap": {
       "command": "npx",
-      "args": ["-y", "@ghostswap/mcp"],
+      "args": ["-y", "@ghostswapio/mcp"],
       "env": {
         "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
         "GHOSTSWAP_SECRET": "gssk_live_..."
@@ -64,7 +64,7 @@ In `~/.continue/config.yaml`:
 mcpServers:
   - name: ghostswap
     command: npx
-    args: ["-y", "@ghostswap/mcp"]
+    args: ["-y", "@ghostswapio/mcp"]
     env:
       GHOSTSWAP_PUBLIC_KEY: gspk_live_...
       GHOSTSWAP_SECRET: gssk_live_...
@@ -78,7 +78,7 @@ from agents.mcp import MCPServerStdio
 server = MCPServerStdio(
     params={
         "command": "npx",
-        "args": ["-y", "@ghostswap/mcp"],
+        "args": ["-y", "@ghostswapio/mcp"],
         "env": {
             "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
             "GHOSTSWAP_SECRET": "gssk_live_...",
@@ -96,7 +96,7 @@ import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
 const client = await experimental_createMCPClient({
   transport: new Experimental_StdioMCPTransport({
     command: 'npx',
-    args: ['-y', '@ghostswap/mcp'],
+    args: ['-y', '@ghostswapio/mcp'],
     env: {
       GHOSTSWAP_PUBLIC_KEY: 'gspk_live_...',
       GHOSTSWAP_SECRET: 'gssk_live_...',
@@ -113,7 +113,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 client = MultiServerMCPClient({
     "ghostswap": {
         "command": "npx",
-        "args": ["-y", "@ghostswap/mcp"],
+        "args": ["-y", "@ghostswapio/mcp"],
         "env": {
             "GHOSTSWAP_PUBLIC_KEY": "gspk_live_...",
             "GHOSTSWAP_SECRET": "gssk_live_...",

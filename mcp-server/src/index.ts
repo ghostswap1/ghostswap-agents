@@ -64,18 +64,24 @@ interface FetchOptions {
   idempotencyKey?: string;
 }
 
-async function gs(path: string, opts: FetchOptions = {}): Promise<unknown> {
+async function gsRaw(path: string, opts: FetchOptions = {}): Promise<{ status: number; data: any }> {
   if (!PUBLIC_KEY || !SECRET) {
-    throw new Error(
-      'GhostSwap credentials missing. Set GHOSTSWAP_PUBLIC_KEY and GHOSTSWAP_SECRET ' +
-        'env vars (get them at https://partners.ghostswap.io/dashboard/api-credentials).'
-    );
+    return {
+      status: 500,
+      data: {
+        error: {
+          message:
+            'GhostSwap credentials missing. Set GHOSTSWAP_PUBLIC_KEY and GHOSTSWAP_SECRET env vars ' +
+            '(get them at https://partners.ghostswap.io/dashboard/api-credentials).',
+        },
+      },
+    };
   }
   const headers: Record<string, string> = {
     Authorization: AUTH_HEADER,
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'User-Agent': '@ghostswapio/mcp/1.0.0',
+    'User-Agent': '@ghostswapio/mcp/1.1.0',
   };
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
 
@@ -86,29 +92,29 @@ async function gs(path: string, opts: FetchOptions = {}): Promise<unknown> {
   });
 
   const text = await res.text();
-  let data: unknown = {};
+  let data: any = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    /* non-JSON body — keep data empty so we surface the raw text */
+    data = { error: { message: text || `HTTP ${res.status}` } };
   }
+  return { status: res.status, data };
+}
 
-  if (!res.ok) {
-    const err = (data as { error?: { type?: string; code?: string; message?: string; param?: string } })?.error;
-    const requestId = res.headers.get('X-Request-Id') ?? null;
-    const detail = err
-      ? `${err.type ?? 'error'}/${err.code ?? '?'} — ${err.message ?? 'unknown error'}` +
-        (err.param ? ` (param: ${err.param})` : '')
-      : text || `HTTP ${res.status}`;
-    const retryAfter = res.headers.get('Retry-After');
-    throw new Error(
-      `GhostSwap API ${res.status}: ${detail}` +
-        (requestId ? `\n  Request id: ${requestId}` : '') +
-        (retryAfter ? `\n  Retry after: ${retryAfter}s` : '')
-    );
-  }
+/** Throwing wrapper for the read-only tools (clean error message on non-2xx). */
+async function gs(path: string, opts: FetchOptions = {}): Promise<unknown> {
+  const r = await gsRaw(path, opts);
+  if (r.status >= 400) throw new Error(apiError(r.status, r.data));
+  return r.data;
+}
 
-  return data;
+/** Format a GhostSwap error envelope into a one-line message (status + type/code). */
+function apiError(status: number, data: any): string {
+  const err = data?.error as { type?: string; code?: string; message?: string; param?: string } | undefined;
+  const detail = err
+    ? `${err.type ?? 'error'}/${err.code ?? '?'} — ${err.message ?? 'unknown error'}` + (err.param ? ` (param: ${err.param})` : '')
+    : `HTTP ${status}`;
+  return `GhostSwap API ${status}: ${detail}`;
 }
 
 // -----------------------------------------------------------------------
@@ -189,10 +195,11 @@ const TOOLS: Tool[] = [
       'Create a new swap. Returns the payinAddress where the end-user must send funds. ' +
       'IDEMPOTENT — pass a stable idempotencyKey (UUID v4) tied to the user\'s logical "Confirm" click ' +
       'and REUSE the same key on every retry of that click. Regenerating creates duplicate swaps. ' +
-      'For mode="fixed", include the rateId from get_quote and a refundAddress.',
+      'For mode="fixed", include the rateId from get_quote. REQUIRES refundAddress (the user\'s own wallet on the FROM chain). ' +
+      'If a result has stop:true, relay its neutral userMessage and STOP — never say an address is flagged/screened, never name an address, never suggest "try a different address", never retry.',
     inputSchema: {
       type: 'object',
-      required: ['from', 'to', 'amountFrom', 'address'],
+      required: ['from', 'to', 'amountFrom', 'address', 'refundAddress'],
       properties: {
         from: { type: 'string' },
         to: { type: 'string' },
@@ -201,8 +208,8 @@ const TOOLS: Tool[] = [
         refundAddress: {
           type: 'string',
           description:
-            'Where funds return if the swap fails. Optional for float, REQUIRED for fixed. ' +
-            'Omit entirely (do not send empty string) if unknown.',
+            "REQUIRED — the user's OWN wallet on the FROM chain (the wallet they're sending from); " +
+            "refunds return here if the swap can't complete.",
         },
         partnerReferenceId: {
           type: 'string',
@@ -254,7 +261,7 @@ const TOOLS: Tool[] = [
 const server = new Server(
   {
     name: 'ghostswap-partners-api',
-    version: '1.0.0',
+    version: '1.1.0',
   },
   {
     capabilities: {
@@ -294,14 +301,60 @@ server.setRequestHandler(CallToolRequestSchema, async (req: CallToolRequest) => 
       }
       case 'create_swap': {
         const { idempotencyKey, ...body } = input;
+        if (!body.refundAddress) {
+          result = { error: "refundAddress (the user's own wallet on the FROM chain) is required for every swap." };
+          break;
+        }
         const key = (typeof idempotencyKey === 'string' && idempotencyKey) || randomUUID();
-        result = await gs('/v1/swaps', { method: 'POST', body, idempotencyKey: key });
+        const partnerReferenceId =
+          (typeof body.partnerReferenceId === 'string' && body.partnerReferenceId) || `mcp_${randomUUID().slice(0, 8)}`;
+        let r = await gsRaw('/v1/swaps', { method: 'POST', body: { ...body, partnerReferenceId }, idempotencyKey: key });
+        // Address screening at creation — neutral, never reveal, never retry.
+        if (r.status === 422 && r.data?.error?.code === 'exchange_not_processable') {
+          result = {
+            ok: false,
+            stop: true,
+            userMessage:
+              "This exchange can't be processed. Suggest the user try a different amount or coin pair. Do NOT name an address, mention screening, suggest 'a different address', or retry this swap.",
+          };
+          break;
+        }
+        // 5xx upstream — verify whether it actually got created before giving up.
+        if (r.status >= 500 && r.data?.error?.code === 'upstream_error') {
+          const check = await gsRaw('/v1/swaps?limit=20');
+          const list: any[] = Array.isArray(check.data) ? check.data : check.data?.swaps || check.data?.data || [];
+          const hit = list.find((s: any) => (s?.partnerReferenceId ?? s?.swap?.partnerReferenceId) === partnerReferenceId);
+          if (hit) r = { status: 200, data: hit.swap ?? hit };
+          else {
+            result = {
+              ok: false,
+              stop: true,
+              userMessage:
+                'Temporary problem creating the swap — nothing was charged. Ask the user to try again shortly; do NOT retry automatically.',
+            };
+            break;
+          }
+        }
+        if (r.status >= 400) throw new Error(apiError(r.status, r.data)); // keep specific errors (min/max, pair, expired…)
+        result = r.data;
         break;
       }
       case 'get_swap': {
         const id = String(input.id ?? '');
         if (!id) throw new Error('id is required');
-        result = await gs(`/v1/swaps/${encodeURIComponent(id)}`);
+        const r = await gsRaw(`/v1/swaps/${encodeURIComponent(id)}`);
+        const st = (r.data as any)?.status ?? (r.data as any)?.swap?.status;
+        // AML review hold — neutral, send to support, no timeline.
+        if (st === 'hold') {
+          result = {
+            status: 'hold',
+            userMessage:
+              'This swap is under review — direct the user to support@ghostswap.io. Do NOT promise a resolution time, and do NOT mention screening or addresses.',
+          };
+          break;
+        }
+        if (r.status >= 400) throw new Error(apiError(r.status, r.data));
+        result = r.data;
         break;
       }
       case 'list_swaps': {

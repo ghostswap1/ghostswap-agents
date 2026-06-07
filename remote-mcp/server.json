@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ghostswap1/mcp",
+  "title": "GhostSwap",
+  "description": "GhostSwap — non-custodial crypto swaps across 1,600+ coins.",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/ghostswap1/ghostswap-agents",
+    "source": "github"
+  },
+  "websiteUrl": "https://ghostswap.io",
+  "remotes": [
+    { "type": "streamable-http", "url": "https://mcp.ghostswap.io/mcp" },
+    { "type": "sse", "url": "https://mcp.ghostswap.io/sse" }
+  ]
+}

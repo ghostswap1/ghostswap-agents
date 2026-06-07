@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>GhostSwap — Swap 1,600+ Cryptos by Chatting · No Account, No KYC</title>
+<meta name="description" content="Swap Bitcoin, Monero, Ethereum and 1,600+ coins by chatting with an AI. Non-custodial, no account, no install — just say what you want to swap." />
+<link rel="canonical" href="https://chat.ghostswap.io/" />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0c0c12" />
+
+<!-- Favicon: inline SVG ghost (no asset file) + PNG for iOS / home-screen -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👻</text></svg>" />
+<link rel="apple-touch-icon" href="/icon.png" />
+
+<!-- Open Graph (link previews on Telegram, Discord, iMessage, Slack…) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="GhostSwap" />
+<meta property="og:title" content="GhostSwap — swap crypto by chatting" />
+<meta property="og:description" content="Swap 1,600+ cryptocurrencies by chatting with an AI. Non-custodial, no account, no install." />
+<meta property="og:url" content="https://chat.ghostswap.io/" />
+<meta property="og:image" content="https://chat.ghostswap.io/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+
+<!-- Twitter / X card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="GhostSwap — swap crypto by chatting" />
+<meta name="twitter:description" content="Swap 1,600+ cryptocurrencies by chatting with an AI. Non-custodial, no account, no install." />
+<meta name="twitter:image" content="https://chat.ghostswap.io/og.png" />
+<style>
+  :root{
+    --bg:#0c0c12; --bg2:#14141f; --card:#181826; --line:#262636;
+    --txt:#e8e8f0; --muted:#9a9ab0; --accent:#8b7cff; --accent2:#a78bff; --green:#39d98a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #1a1830 0%, var(--bg) 55%);
+    color:var(--txt); font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100dvh;
+  }
+  header{
+    display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line);
+    background:rgba(12,12,18,.7); backdrop-filter:blur(10px); flex:none;
+  }
+  .logo{font-weight:700; font-size:18px; display:flex; align-items:center; gap:8px}
+  .logo .g{filter:drop-shadow(0 0 10px rgba(139,124,255,.6))}
+  .tag{color:var(--muted); font-size:12.5px; margin-left:auto; text-align:right}
+  main{flex:1; overflow-y:auto; width:100%}
+  .wrap{max-width:680px; margin:0 auto; padding:18px 14px 8px; display:flex; flex-direction:column; gap:12px}
+  .row{display:flex; gap:10px; align-items:flex-end}
+  .row.user{flex-direction:row-reverse}
+  .avatar{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:16px;
+    background:linear-gradient(160deg,var(--accent),#5b4bd6); box-shadow:0 0 14px rgba(139,124,255,.4)}
+  .row.user .avatar{background:#2a2a3c; box-shadow:none}
+  .bubble{max-width:82%; padding:11px 14px; border-radius:16px; background:var(--bg2); border:1px solid var(--line); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere}
+  .row.user .bubble{background:linear-gradient(160deg,#3a2f7a,#2c2456); border-color:#4a3f8a}
+  .bubble.err{border-color:#5a2a2a; background:#2a1818; color:#ffd9d9}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 0 40px}
+  .chip{padding:8px 12px; border:1px solid var(--line); border-radius:99px; background:#181826; color:var(--txt); font-size:13px; cursor:pointer}
+  .chip:hover{border-color:var(--accent); color:#fff}
+  .typing{display:inline-flex; gap:4px; padding:4px 0}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s} .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  form#bar{flex:none; border-top:1px solid var(--line); background:rgba(12,12,18,.85); backdrop-filter:blur(10px); padding:10px 12px env(safe-area-inset-bottom)}
+  .barwrap{max-width:680px; margin:0 auto; display:flex; gap:8px; align-items:flex-end; padding-bottom:6px}
+  textarea{
+    flex:1; resize:none; max-height:140px; padding:11px 12px; border-radius:12px; border:1px solid var(--line);
+    background:#0f0f18; color:var(--txt); font-size:15px; line-height:1.4; outline:none; font-family:inherit;
+  }
+  textarea:focus{border-color:var(--accent)}
+  textarea::placeholder{color:#55556a}
+  #send{flex:none; width:46px; height:46px; border:none; border-radius:12px; cursor:pointer; font-size:18px; color:#fff;
+    background:linear-gradient(160deg,var(--accent),#5b4bd6)}
+  #send:disabled{opacity:.45; cursor:not-allowed}
+  .foot{max-width:680px;margin:0 auto;color:var(--muted);font-size:11px;text-align:center;padding:0 14px 8px}
+  .foot a{color:var(--accent2);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="g">👻</span> GhostSwap</div>
+  <div class="tag">non-custodial · 1,600+ coins · no account</div>
+</header>
+<main><div class="wrap" id="chat"></div></main>
+<form id="bar" autocomplete="off">
+  <div class="barwrap">
+    <textarea id="input" rows="1" placeholder="Tell me what you want to swap…"></textarea>
+    <button id="send" type="submit" title="Send">➤</button>
+  </div>
+  <div class="foot">Real crypto — you send funds directly to the deposit address; GhostSwap never holds them. · <a href="https://ghostswap.io" target="_blank" rel="noopener">ghostswap.io</a></div>
+</form>
+
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const form = document.getElementById('bar');
+const history = [];   // {role:'user'|'assistant', content}
+let busy = false;
+
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function scroll(){ requestAnimationFrame(()=>{ document.querySelector('main').scrollTop = 1e9; }); }
+
+function bubble(who, text, cls=''){
+  const row = document.createElement('div'); row.className='row '+who;
+  row.innerHTML = '<div class="avatar">'+(who==='bot'?'👻':'🧑')+'</div><div class="bubble '+cls+'">'+esc(text)+'</div>';
+  chat.appendChild(row); scroll(); return row;
+}
+function typingRow(){
+  const row = document.createElement('div'); row.className='row bot';
+  row.innerHTML = '<div class="avatar">👻</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
+  chat.appendChild(row); scroll(); return row;
+}
+function chips(items){
+  const d = document.createElement('div'); d.className='chips';
+  for(const t of items){ const c=document.createElement('button'); c.type='button'; c.className='chip'; c.textContent=t; c.onclick=()=>{ if(!busy) send(t); }; d.appendChild(c); }
+  chat.appendChild(d); scroll();
+}
+
+async function send(text){
+  text = (text||'').trim();
+  if(!text || busy) return;
+  busy = true; sendBtn.disabled = true; input.value=''; autosize();
+  document.querySelectorAll('.chips').forEach(c=>c.remove());
+  bubble('user', text);
+  history.push({role:'user', content:text});
+  const t = typingRow();
+  try{
+    const res = await fetch('/api/chat', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ messages: history }) });
+    const data = await res.json();
+    t.remove();
+    if(!res.ok || data.error){ bubble('bot', (data.error && data.error.message) || 'Something went wrong — try again.', 'err'); }
+    else { bubble('bot', data.reply || '…'); history.push({role:'assistant', content:data.reply||''}); }
+  }catch(e){
+    t.remove(); bubble('bot', 'Network error — please try again.', 'err');
+  }
+  busy=false; sendBtn.disabled=false; input.focus();
+}
+
+function autosize(){ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,140)+'px'; }
+input.addEventListener('input', autosize);
+input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(input.value); } });
+form.addEventListener('submit', e=>{ e.preventDefault(); send(input.value); });
+
+// greeting
+bubble('bot', "Hey 👻 I'm the GhostSwap assistant. Tell me what you'd like to swap — for example:");
+chips(['Swap 0.01 BTC to XMR', "What's the min to swap ETH to BTC?", 'What coins can you swap?']);
+input.focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+node_modules/
+.dev.vars
+.cf.env
+.wrangler/
+dist/
+.DS_Store
+*.log
+*.pem

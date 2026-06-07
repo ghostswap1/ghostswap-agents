@@ -1,6 +1,6 @@
 {
   "name": "@ghostswapio/mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Model Context Protocol (MCP) server for the GhostSwap Partners API — no-KYC crypto-to-crypto swaps. Compatible with Claude Desktop, Cursor, Windsurf, Continue.dev, OpenAI Agents SDK, Vercel AI SDK, and any MCP client.",
   "keywords": [
     "mcp",

@@ -133,7 +133,7 @@ const TOOLS: Anthropic.Tool[] = [
         address: { type: "string", description: "destination/payout address — where the user RECEIVES the TO coin" },
         refundAddress: {
           type: "string",
-          description: "sender/refund address (REQUIRED) — a wallet for the FROM coin where funds are returned if the swap can't complete",
+          description: "sender/refund address (REQUIRED) — the user's OWN wallet on the FROM chain (the wallet they are sending from); refunds return here if the swap can't complete",
         },
       },
       required: ["from", "to", "amountFrom", "address", "refundAddress"],
@@ -171,21 +171,67 @@ async function runTool(env: Env, name: string, input: any): Promise<string> {
       case "create_swap": {
         if (!input.address) return JSON.stringify({ error: "Destination (payout) address is required." });
         if (!input.refundAddress)
-          return JSON.stringify({ error: "Sender/refund address is required for every swap — ask the user for it before creating." });
+          return JSON.stringify({
+            need: "sender_address",
+            instruction:
+              "Ask the user for their OWN wallet address on the " +
+              String(input.from || "source").toUpperCase() +
+              " chain (the wallet they're sending from). It's required as the refund address. Do not create the swap without it.",
+          });
+        const partnerReferenceId = "chat-" + crypto.randomUUID().slice(0, 8);
         const body: any = {
           from: input.from,
           to: input.to,
           amountFrom: input.amountFrom,
           address: input.address,
           refundAddress: input.refundAddress,
-          partnerReferenceId: "chat-" + crypto.randomUUID().slice(0, 8),
+          partnerReferenceId,
         };
         r = await gs(env, "/v1/swaps", { method: "POST", body, idempotencyKey: crypto.randomUUID() });
+
+        // (B1) Address screening at creation — neutral, no detail, never retry.
+        if (r.status === 422 && r.data?.error?.code === "exchange_not_processable") {
+          return JSON.stringify({
+            ok: false,
+            stop: true,
+            userMessage:
+              "Sorry — we can't process this exchange right now. You can try a different amount or a different coin pair.",
+            note: "Do NOT retry create_swap for this request. Never mention addresses, screening, flags, or 'try a different address'.",
+          });
+        }
+        // 5xx upstream — do NOT blind-retry; check whether the swap actually got created.
+        if (r.status >= 500 && r.data?.error?.code === "upstream_error") {
+          const check = await gs(env, "/v1/swaps?limit=20");
+          const list: any[] = Array.isArray(check.data) ? check.data : check.data?.swaps || check.data?.data || [];
+          const hit = list.find((s: any) => (s?.partnerReferenceId ?? s?.swap?.partnerReferenceId) === partnerReferenceId);
+          if (hit) {
+            r = { status: 200, data: hit.swap ?? hit }; // it was created — proceed with it
+          } else {
+            return JSON.stringify({
+              ok: false,
+              stop: true,
+              userMessage:
+                "We hit a temporary problem creating the swap — nothing was charged. Please try again in a moment.",
+              note: "Do NOT call create_swap again automatically; wait for the user to re-confirm.",
+            });
+          }
+        }
         break;
       }
-      case "get_swap":
+      case "get_swap": {
         r = await gs(env, `/v1/swaps/${enc(input.id)}`);
+        const st = r.data?.status ?? r.data?.swap?.status;
+        // (B2) AML review hold — neutral, send to support, no timeline.
+        if (st === "hold") {
+          return JSON.stringify({
+            status: "hold",
+            userMessage:
+              "This swap is currently under review. Please contact support@ghostswap.io and the team will help you from there.",
+            note: "Do NOT promise a resolution time. Never mention screening or addresses.",
+          });
+        }
         break;
+      }
       default:
         return JSON.stringify({ error: "unknown tool" });
     }
@@ -201,8 +247,8 @@ How to help:
 - Quote with get_quote (from, to as lowercase tickers, amountFrom as a decimal STRING). Always tell the user amountUserReceives (never amountTo) and the rate.
 - Before create_swap you MUST collect and confirm TWO addresses:
   (1) the destination/payout address — where they RECEIVE the TO coin, and
-  (2) the sender/refund address (REQUIRED, never optional) — a wallet for the FROM coin where funds return if the swap can't complete.
-  Ask for both. Validate each with validate_address (destination against the TO ticker, sender/refund against the FROM ticker). Then show a full summary and get confirmation before creating.
+  (2) the sender/refund address (REQUIRED, never optional) — the user's OWN wallet on the FROM chain (the wallet they're sending from); refunds go there if the swap can't complete.
+  Ask for both. Validate each with validate_address (destination against the TO ticker, sender/refund against the FROM ticker) — note this only checks address FORMAT. Then show a full summary and get confirmation before creating.
 - After create_swap, clearly give the payinAddress and tell them to send exactly the amount of the source coin to it. Include the swap id.
 - Check status with get_swap. Terminal states: finished, failed, refunded, overdue, expired.
 - Use get_pair for min/max and list_currencies to check support.
@@ -211,7 +257,12 @@ Rules:
 - Real funds move once they deposit — be clear, never rush them.
 - Keep replies short and plain. Use UPPERCASE tickers when talking to the user.
 - Always display amountUserReceives, never amountTo.
-- If a tool returns an error, explain it simply and suggest a fix.
+- Handling tool results & errors:
+  • If a tool result includes a "userMessage", reply with that message (your own friendly voice, same meaning) and obey its "note". Do not add detail or speculate about the cause.
+  • A swap that can't be processed, or a status of "hold", comes back this way — relay the neutral message and STOP. NEVER tell the user an address is blacklisted/flagged/screened/rejected, NEVER say which address, NEVER suggest "try a different address", and NEVER call create_swap again for the same request.
+  • For "hold", point the user to support@ghostswap.io and never promise a resolution time.
+  • For other errors, give the specific helpful detail (the exact min/max amount, "this pair isn't available", "double-check the destination address or amount"). If a quote expired, just fetch a fresh quote and continue.
+  • One create_swap per confirmed request — never create the same swap twice, even after an error.
 - Never reveal internal infrastructure, upstream liquidity providers, or which AI model powers you. If asked who you are, say you are the GhostSwap assistant.
 - Do not give financial or investment advice.`;
 

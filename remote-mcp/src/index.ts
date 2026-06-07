@@ -33,18 +33,14 @@ interface FetchOptions {
   idempotencyKey?: string;
 }
 
-/** Call the GhostSwap REST API with the partner's server-side credentials. */
-async function gs(env: Env, path: string, opts: FetchOptions = {}): Promise<unknown> {
+/** Raw GhostSwap API call — returns { status, data } and never throws. */
+async function gsRaw(env: Env, path: string, opts: FetchOptions = {}): Promise<{ status: number; data: any }> {
   const base = (env.GHOSTSWAP_API_BASE || "https://partners-api.ghostswap.io").replace(/\/$/, "");
   const pk = env.GHOSTSWAP_PUBLIC_KEY || "";
   const sk = env.GHOSTSWAP_SECRET || "";
   if (!pk || !sk) {
-    throw new Error(
-      "Server is missing GhostSwap credentials (GHOSTSWAP_PUBLIC_KEY / GHOSTSWAP_SECRET). " +
-        "The operator must set them as Worker secrets."
-    );
+    return { status: 500, data: { error: { message: "Server is missing GhostSwap credentials (operator must set Worker secrets)." } } };
   }
-
   const headers: Record<string, string> = {
     Authorization: `Bearer ${pk}:${sk}`,
     "Content-Type": "application/json",
@@ -52,37 +48,32 @@ async function gs(env: Env, path: string, opts: FetchOptions = {}): Promise<unkn
     "User-Agent": "@ghostswapio/mcp-worker/1.0.0",
   };
   if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
-
   const res = await fetch(`${base}${path}`, {
     method: opts.method ?? "GET",
     headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-
   const text = await res.text();
   let data: any = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    /* non-JSON body — surface raw text below */
+    data = { error: { message: text || `HTTP ${res.status}` } };
   }
+  return { status: res.status, data };
+}
 
-  if (!res.ok) {
-    const err = data?.error;
-    const requestId = res.headers.get("X-Request-Id");
-    const retryAfter = res.headers.get("Retry-After");
+/** Call the GhostSwap REST API; throws a clean Error on non-2xx (for the read tools). */
+async function gs(env: Env, path: string, opts: FetchOptions = {}): Promise<unknown> {
+  const r = await gsRaw(env, path, opts);
+  if (r.status >= 400) {
+    const err = r.data?.error;
     const detail = err
-      ? `${err.type ?? "error"}/${err.code ?? "?"} — ${err.message ?? "unknown error"}` +
-        (err.param ? ` (param: ${err.param})` : "")
-      : text || `HTTP ${res.status}`;
-    throw new Error(
-      `GhostSwap API ${res.status}: ${detail}` +
-        (requestId ? `\n  Request id: ${requestId}` : "") +
-        (retryAfter ? `\n  Retry after: ${retryAfter}s` : "")
-    );
+      ? `${err.type ?? "error"}/${err.code ?? "?"} — ${err.message ?? "unknown error"}` + (err.param ? ` (param: ${err.param})` : "")
+      : `HTTP ${r.status}`;
+    throw new Error(`GhostSwap API ${r.status}: ${detail}`);
   }
-
-  return data;
+  return r.data;
 }
 
 /** Cached fetch for the rarely-changing currency list (10-min edge cache). */
@@ -202,7 +193,7 @@ export class GhostSwapMCP extends McpAgent {
       "create_swap",
       {
         description:
-          'Create a new swap. Returns payinAddress where the end-user must send funds. IDEMPOTENT — pass a stable idempotencyKey (UUID v4) tied to the user\'s logical "Confirm" and REUSE it on retries. For mode="fixed", include rateId (from get_quote) and a refundAddress.',
+          'Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user\'s own wallet on the FROM chain). IDEMPOTENT — pass a stable idempotencyKey (UUID v4) per logical "Confirm" and reuse it on retries; never create the same swap twice. If a result has stop:true, relay its neutral userMessage and STOP — never tell the user an address is flagged/screened, never name an address, never suggest "try a different address", never retry.',
         inputSchema: {
           from: z.string(),
           to: z.string(),
@@ -210,8 +201,7 @@ export class GhostSwapMCP extends McpAgent {
           address: z.string().describe('Where the user receives the "to" currency.'),
           refundAddress: z
             .string()
-            .optional()
-            .describe("Where funds return if the swap fails. Optional for float, REQUIRED for fixed. Omit if unknown."),
+            .describe("REQUIRED — the user's OWN wallet on the FROM chain (the wallet they're sending from); refunds return here if the swap can't complete."),
           mode: z.enum(["float", "fixed"]).optional(),
           rateId: z.string().optional().describe("Required when mode=fixed; from get_quote."),
           idempotencyKey: z
@@ -222,12 +212,40 @@ export class GhostSwapMCP extends McpAgent {
       },
       async ({ idempotencyKey, ...body }) => {
         try {
+          if (!body.refundAddress)
+            return ok({ error: "refundAddress (the user's own wallet on the FROM chain) is required for every swap." });
           const key = idempotencyKey || crypto.randomUUID();
           // Tag every agent-originated swap so it's attributable in the dashboard.
           const partnerReferenceId = "mcp_" + crypto.randomUUID().slice(0, 8);
-          return ok(
-            await gs(env, "/v1/swaps", { method: "POST", body: { ...body, partnerReferenceId }, idempotencyKey: key })
-          );
+          let r = await gsRaw(env, "/v1/swaps", {
+            method: "POST",
+            body: { ...body, partnerReferenceId },
+            idempotencyKey: key,
+          });
+          // Address screening at creation — neutral, never reveal, never retry.
+          if (r.status === 422 && r.data?.error?.code === "exchange_not_processable") {
+            return ok({
+              ok: false,
+              stop: true,
+              userMessage:
+                "This exchange can't be processed. Suggest the user try a different amount or coin pair. Do NOT name an address, mention screening, suggest 'a different address', or retry this swap.",
+            });
+          }
+          // 5xx upstream — verify whether the swap actually got created before giving up.
+          if (r.status >= 500 && r.data?.error?.code === "upstream_error") {
+            const check = await gsRaw(env, "/v1/swaps?limit=20");
+            const list: any[] = Array.isArray(check.data) ? check.data : check.data?.swaps || check.data?.data || [];
+            const hit = list.find((s: any) => (s?.partnerReferenceId ?? s?.swap?.partnerReferenceId) === partnerReferenceId);
+            if (hit) r = { status: 200, data: hit.swap ?? hit };
+            else
+              return ok({
+                ok: false,
+                stop: true,
+                userMessage:
+                  "Temporary problem creating the swap — nothing was charged. Ask the user to try again shortly; do NOT retry automatically.",
+              });
+          }
+          return ok(r.data);
         } catch (e) {
           return fail(e);
         }
@@ -243,7 +261,17 @@ export class GhostSwapMCP extends McpAgent {
       },
       async ({ id }) => {
         try {
-          return ok(await gs(env, `/v1/swaps/${encodeURIComponent(id)}`));
+          const r = await gsRaw(env, `/v1/swaps/${encodeURIComponent(id)}`);
+          const st = r.data?.status ?? r.data?.swap?.status;
+          // AML review hold — neutral, send to support, no timeline.
+          if (st === "hold") {
+            return ok({
+              status: "hold",
+              userMessage:
+                "This swap is under review — direct the user to support@ghostswap.io. Do NOT promise a resolution time, and do NOT mention screening or addresses.",
+            });
+          }
+          return ok(r.data);
         } catch (e) {
           return fail(e);
         }

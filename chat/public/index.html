@@ -9,8 +9,9 @@
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0c0c12" />
 
-<!-- Favicon: inline SVG ghost (no asset file) + PNG for iOS / home-screen -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👻</text></svg>" />
+<!-- Favicon + app icon: the GhostSwap mark -->
+<link rel="icon" type="image/png" sizes="192x192" href="/icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 <link rel="apple-touch-icon" href="/icon.png" />
 
 <!-- Open Graph (link previews on Telegram, Discord, iMessage, Slack…) -->
@@ -28,6 +29,35 @@
 <meta name="twitter:title" content="GhostSwap — swap crypto by chatting" />
 <meta name="twitter:description" content="Swap 1,600+ cryptocurrencies by chatting with an AI. Non-custodial, no account, no install." />
 <meta name="twitter:image" content="https://chat.ghostswap.io/og.png" />
+
+<!-- Structured data (schema.org) — helps Google + AI assistants understand the page -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://ghostswap.io/#org",
+      "name": "GhostSwap",
+      "url": "https://ghostswap.io",
+      "logo": "https://chat.ghostswap.io/icon.png",
+      "description": "Non-custodial, no-KYC instant cryptocurrency exchange supporting 1,600+ assets.",
+      "sameAs": ["https://t.me/ghostswap1", "https://github.com/ghostswap1"]
+    },
+    {
+      "@type": "WebApplication",
+      "name": "GhostSwap Chat",
+      "url": "https://chat.ghostswap.io/",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "browserRequirements": "Requires JavaScript",
+      "description": "Swap 1,600+ cryptocurrencies (BTC, ETH, Monero/XMR and more) by chatting with an AI — no account, no KYC, non-custodial. An anonymous, privacy-first instant crypto exchange.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "publisher": { "@id": "https://ghostswap.io/#org" }
+    }
+  ]
+}
+</script>
 <style>
   :root{
     --bg:#0c0c12; --bg2:#14141f; --card:#181826; --line:#262636;
@@ -45,7 +75,8 @@
     background:rgba(12,12,18,.7); backdrop-filter:blur(10px); flex:none;
   }
   .logo{font-weight:700; font-size:18px; display:flex; align-items:center; gap:8px}
-  .logo .g{filter:drop-shadow(0 0 10px rgba(139,124,255,.6))}
+  .logo .g{height:22px;width:auto;display:block;filter:drop-shadow(0 0 10px rgba(139,124,255,.6))}
+  .av-mark{width:18px;height:18px;object-fit:contain;display:block}
   .tag{color:var(--muted); font-size:12.5px; margin-left:auto; text-align:right}
   main{flex:1; overflow-y:auto; width:100%}
   .wrap{max-width:680px; margin:0 auto; padding:18px 14px 8px; display:flex; flex-direction:column; gap:12px}
@@ -81,7 +112,7 @@
 </head>
 <body>
 <header>
-  <div class="logo"><span class="g">👻</span> GhostSwap</div>
+  <div class="logo"><img src="/ghost-mark.png" class="g" alt="" /> GhostSwap</div>
   <div class="tag">non-custodial · 1,600+ coins · no account</div>
 </header>
 <main><div class="wrap" id="chat"></div></main>
@@ -106,12 +137,12 @@ function scroll(){ requestAnimationFrame(()=>{ document.querySelector('main').sc
 
 function bubble(who, text, cls=''){
   const row = document.createElement('div'); row.className='row '+who;
-  row.innerHTML = '<div class="avatar">'+(who==='bot'?'👻':'🧑')+'</div><div class="bubble '+cls+'">'+esc(text)+'</div>';
+  row.innerHTML = '<div class="avatar">'+(who==='bot'?'<img src="/ghost-mark.png" class="av-mark" alt="">':'🧑')+'</div><div class="bubble '+cls+'">'+esc(text)+'</div>';
   chat.appendChild(row); scroll(); return row;
 }
 function typingRow(){
   const row = document.createElement('div'); row.className='row bot';
-  row.innerHTML = '<div class="avatar">👻</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
+  row.innerHTML = '<div class="avatar"><img src="/ghost-mark.png" class="av-mark" alt=""></div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
   chat.appendChild(row); scroll(); return row;
 }
 function chips(items){
@@ -146,7 +177,7 @@ input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.pre
 form.addEventListener('submit', e=>{ e.preventDefault(); send(input.value); });
 
 // greeting
-bubble('bot', "Hey 👻 I'm the GhostSwap assistant. Tell me what you'd like to swap — for example:");
+bubble('bot', "Hey! I'm the GhostSwap assistant. Tell me what you'd like to swap — for example:");
 chips(['Swap 0.01 BTC to XMR', "What's the min to swap ETH to BTC?", 'What coins can you swap?']);
 input.focus();
 </script>

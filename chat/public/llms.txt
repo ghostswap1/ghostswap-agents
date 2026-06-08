@@ -1,0 +1,26 @@
+# GhostSwap Chat
+
+> Swap 1,600+ cryptocurrencies by chatting with an AI — no account, no KYC, non-custodial. A privacy-respecting, anonymous instant crypto exchange where funds go straight to your wallet; GhostSwap never holds them.
+
+GhostSwap Chat (https://chat.ghostswap.io) is a free, zero-setup AI assistant that quotes live rates, validates wallet addresses, creates non-custodial crypto-to-crypto swaps, and tracks them to completion — entirely through conversation. It is a non-custodial instant exchange: the user sends to a one-time deposit address and the payout goes directly to the destination wallet, with no account, no email, and no KYC.
+
+## What it does
+- Quote live exchange rates across 1,600+ coins (Bitcoin/BTC, Ethereum/ETH, Monero/XMR, Litecoin/LTC, and more)
+- Non-custodial swaps — e.g. swap BTC to XMR (Monero) with payouts straight to your own wallet
+- No account, no email, no KYC — an anonymous, privacy-first crypto exchange
+- Idempotent, screened order creation; always set a refund address
+
+## How to use it
+Open https://chat.ghostswap.io and type, for example:
+"Swap 0.05 BTC to XMR, payout to <your-monero-address>, refund to <your-bitcoin-address>."
+
+## For AI agents and developers
+- Hosted MCP server (connect with no key): https://mcp.ghostswap.io/mcp  (Streamable HTTP; /sse also available)
+- npm package: @ghostswapio/mcp  (npx -y @ghostswapio/mcp)
+- MCP registry id: io.github.ghostswap1/mcp
+- Docs: https://partners.ghostswap.io/docs
+- Open source: https://github.com/ghostswap1/ghostswap-agents
+
+## Links
+- Website: https://ghostswap.io
+- Support: support@ghostswap.io

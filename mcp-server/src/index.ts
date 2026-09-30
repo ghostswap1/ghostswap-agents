@@ -81,7 +81,7 @@ async function gsRaw(path: string, opts: FetchOptions = {}): Promise<{ status: n
     Authorization: AUTH_HEADER,
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'User-Agent': '@ghostswapio/mcp/1.1.0',
+    'User-Agent': '@ghostswapio/mcp/1.2.0',
   };
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
 
@@ -128,7 +128,9 @@ const TOOLS: Tool[] = [
     name: 'list_currencies',
     description:
       'List all coins GhostSwap supports for swapping (1,600+ assets). ' +
-      'Use lite=true for just an array of tickers (e.g. ["btc","eth","ltc"]).',
+      'Use lite=true for just an array of tickers (e.g. ["btc","eth","ltc"]). ' +
+      'Full metadata includes requiresExtraId + extraIdName: when the TO coin has requiresExtraId=true ' +
+      '(XRP, XLM, ATOM, HBAR, TON…), collect the memo / destination tag before create_swap.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -196,6 +198,8 @@ const TOOLS: Tool[] = [
       'IDEMPOTENT — pass a stable idempotencyKey (UUID v4) tied to the user\'s logical "Confirm" click ' +
       'and REUSE the same key on every retry of that click. Regenerating creates duplicate swaps. ' +
       'For mode="fixed", include the rateId from get_quote. REQUIRES refundAddress (the user\'s own wallet on the FROM chain). ' +
+      'If the TO coin needs a memo / destination tag (requiresExtraId on list_currencies), pass it as extraId — ' +
+      'without it the API returns missing_extra_id. Only if the user confirms their wallet has no tag, send extraIdNotRequired=true. ' +
       'If a result has stop:true, relay its neutral userMessage and STOP — never say an address is flagged/screened, never name an address, never suggest "try a different address", never retry.',
     inputSchema: {
       type: 'object',
@@ -205,11 +209,27 @@ const TOOLS: Tool[] = [
         to: { type: 'string' },
         amountFrom: { type: 'string', description: 'Decimal as STRING.' },
         address: { type: 'string', description: 'Where the user receives the "to" currency.' },
+        extraId: {
+          type: 'string',
+          description:
+            'Memo / destination tag / payment ID for `address`. REQUIRED when the TO coin has requiresExtraId=true ' +
+            '(e.g. an exchange deposit address on XRP, XLM, ATOM). Ask the user for it — never guess.',
+        },
+        extraIdNotRequired: {
+          type: 'boolean',
+          description:
+            'Set true ONLY when the user confirms their TO-coin wallet genuinely has no memo / tag (e.g. self-custody). ' +
+            'Use instead of omitting extraId.',
+        },
         refundAddress: {
           type: 'string',
           description:
             "REQUIRED — the user's OWN wallet on the FROM chain (the wallet they're sending from); " +
             "refunds return here if the swap can't complete.",
+        },
+        refundExtraId: {
+          type: 'string',
+          description: 'Memo / tag for refundAddress when the FROM coin requires one — otherwise a refund cannot be credited.',
         },
         partnerReferenceId: {
           type: 'string',
@@ -261,7 +281,7 @@ const TOOLS: Tool[] = [
 const server = new Server(
   {
     name: 'ghostswap-partners-api',
-    version: '1.1.0',
+    version: '1.2.0',
   },
   {
     capabilities: {

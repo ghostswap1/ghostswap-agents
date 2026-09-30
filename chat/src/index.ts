@@ -135,6 +135,15 @@ const TOOLS: Anthropic.Tool[] = [
           type: "string",
           description: "sender/refund address (REQUIRED) — the user's OWN wallet on the FROM chain (the wallet they are sending from); refunds return here if the swap can't complete",
         },
+        extraId: {
+          type: "string",
+          description: "memo / destination tag for the destination address — REQUIRED for tag coins (XRP, XLM, ATOM, HBAR, TON…) when the user's wallet or exchange gave them one",
+        },
+        extraIdNotRequired: {
+          type: "boolean",
+          description: "set true ONLY after the user confirms their destination wallet has no memo / tag",
+        },
+        refundExtraId: { type: "string", description: "memo / tag for the refund address, when the FROM coin uses one" },
       },
       required: ["from", "to", "amountFrom", "address", "refundAddress"],
     },
@@ -187,6 +196,9 @@ async function runTool(env: Env, name: string, input: any): Promise<string> {
           refundAddress: input.refundAddress,
           partnerReferenceId,
         };
+        if (input.extraId) body.extraId = String(input.extraId);
+        if (input.extraIdNotRequired === true) body.extraIdNotRequired = true;
+        if (input.refundExtraId) body.refundExtraId = String(input.refundExtraId);
         r = await gs(env, "/v1/swaps", { method: "POST", body, idempotencyKey: crypto.randomUUID() });
 
         // (B1) Address screening at creation — neutral, no detail, never retry.
@@ -197,6 +209,17 @@ async function runTool(env: Env, name: string, input: any): Promise<string> {
             userMessage:
               "Sorry — we can't process this exchange right now. You can try a different amount or a different coin pair.",
             note: "Do NOT retry create_swap for this request. Never mention addresses, screening, flags, or 'try a different address'.",
+          });
+        }
+        // Tag coin without a memo — rejected before creation, so asking and calling again is safe.
+        if (r.status === 400 && r.data?.error?.code === "missing_extra_id") {
+          return JSON.stringify({
+            need: "destination_tag",
+            instruction:
+              "No swap was created. " +
+              String(input.to || "this coin").toUpperCase() +
+              " payouts need a memo / destination tag. Ask the user for the tag their receiving wallet or exchange shows. " +
+              "If they confirm their wallet has no tag, call create_swap again with extraIdNotRequired=true; otherwise pass it as extraId.",
           });
         }
         // 5xx upstream — do NOT blind-retry; check whether the swap actually got created.
@@ -248,7 +271,8 @@ How to help:
 - Before create_swap you MUST collect and confirm TWO addresses:
   (1) the destination/payout address — where they RECEIVE the TO coin, and
   (2) the sender/refund address (REQUIRED, never optional) — the user's OWN wallet on the FROM chain (the wallet they're sending from); refunds go there if the swap can't complete.
-  Ask for both. Validate each with validate_address (destination against the TO ticker, sender/refund against the FROM ticker) — note this only checks address FORMAT. Then show a full summary and get confirmation before creating.
+  (3) for tag coins (XRP, XLM, ATOM, HBAR, TON and similar) — the memo / destination tag for the destination address. Exchanges always need it; if the user says their own wallet has none, confirm and pass extraIdNotRequired=true.
+  Ask for both addresses. Validate each with validate_address (destination against the TO ticker, sender/refund against the FROM ticker) — note this only checks address FORMAT. Then show a full summary and get confirmation before creating.
 - After create_swap, clearly give the payinAddress and tell them to send exactly the amount of the source coin to it. Include the swap id.
 - Check status with get_swap. Terminal states: finished, failed, refunded, overdue, expired.
 - Use get_pair for min/max and list_currencies to check support.
@@ -262,7 +286,7 @@ Rules:
   • A swap that can't be processed, or a status of "hold", comes back this way — relay the neutral message and STOP. NEVER tell the user an address is blacklisted/flagged/screened/rejected, NEVER say which address, NEVER suggest "try a different address", and NEVER call create_swap again for the same request.
   • For "hold", point the user to support@ghostswap.io and never promise a resolution time.
   • For other errors, give the specific helpful detail (the exact min/max amount, "this pair isn't available", "double-check the destination address or amount"). If a quote expired, just fetch a fresh quote and continue.
-  • One create_swap per confirmed request — never create the same swap twice, even after an error.
+  • One create_swap per confirmed request — never create the same swap twice, even after an error. The one exception: a result with need:"destination_tag" means NO swap was created — ask for the tag, then call create_swap once more.
 - Never reveal internal infrastructure, upstream liquidity providers, or which AI model powers you. If asked who you are, say you are the GhostSwap assistant.
 - Do not give financial or investment advice.`;
 

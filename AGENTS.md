@@ -58,6 +58,7 @@ When you write code or review code that touches this API:
 6. **On 429,** read `Retry-After` and sleep. Don't hammer. If retrying `POST /v1/swaps`, reuse the same Idempotency-Key.
 7. **On 5xx after `POST /v1/swaps`,** do NOT auto-retry. Call `GET /v1/swaps?limit=20` first to check if the swap was created (look for your `partnerReferenceId`).
 8. **Disable Confirm** until a quote has loaded AND the payout address has validated. Eager-enabled Confirm buttons let users submit blindly.
+9. **Memo / destination tags.** When the `to` currency has `requiresExtraId: true` on `GET /v1/currencies` (XRP, XLM, ATOM, HBAR, TON…), collect the tag and send it as `extraId`; otherwise the API returns 400 `missing_extra_id`. Send `extraIdNotRequired: true` only when the user confirms their wallet has no tag, and `refundExtraId` with `refundAddress` on tag-using `from` coins.
 
 ## Error envelope
 
@@ -96,7 +97,7 @@ Other terminal statuses: `failed`, `refunded`, `overdue`, `expired`.
 - ❌ "Generate a new idempotency key on each retry" — creates duplicate swaps
 - ❌ "Skip the quote panel; users just want to confirm" — biggest cause of bad integrations
 - ❌ "Poll every second so it feels real-time" — wastes the 30 RPS budget; upstream refresh is only ~30 s
-- ❌ "Send `extraId` on swap creation" — currencies needing memos (XRP, XLM, EOS, etc.) are filtered out at source
+- ❌ "Skip the memo field — nobody uses tags" — payouts to exchange deposit addresses on tag coins can't be credited without `extraId`
 - ❌ "Catch errors silently" — always surface `error.message` and `error.param`
 - ❌ "Hard-code the base URL" — read `GHOSTSWAP_API_BASE` from env so staging can override
 

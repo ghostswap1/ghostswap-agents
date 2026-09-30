@@ -1,6 +1,6 @@
 {
   "name": "ghostswap-partners-api",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Integrate the GhostSwap Partners API to add no-KYC crypto swaps (1,600+ coins, 0–4% partner fee, USDT payouts) into wallets, dApps, exchanges, payment flows, or affiliate sites. Covers Bearer auth, live quotes, idempotent swap creation, status polling, address validation, float and fixed-rate modes, error handling, and rate limits.",
   "author": {
     "name": "GhostSwap",

@@ -15,6 +15,8 @@ This repo bundles **every common distribution surface in one place**: an MCP ser
 
 > **About GhostSwap**: <https://ghostswap.io> is a no-KYC, non-custodial crypto-to-crypto exchange built on a partner-revenue-share model. Wallets, dApps, exchanges, and affiliate sites can integrate the [Partners API](https://partners.ghostswap.io) to earn 0–4 % on every swap their users complete, with USDT payouts and no liquidity management on the partner's side.
 
+> **No partner account? Start here.** Point any MCP client at the hosted, no-key server **<https://mcp.ghostswap.io/mcp>** (Streamable HTTP; `/sse` also available) — or just open **[GhostSwap Chat](https://chat.ghostswap.io)** and swap by typing, e.g. *"swap 0.05 BTC to XMR"*. No account, no KYC.
+
 ---
 
 ## Contents
@@ -34,6 +36,25 @@ This repo bundles **every common distribution surface in one place**: an MCP ser
 ---
 
 ## Quick install by runtime
+
+<details open><summary><b>Hosted MCP — no install, no API key</b></summary>
+
+Any client that supports remote MCP servers can connect directly — nothing to install, no credential.
+
+- **Claude.ai / Claude Desktop:** Settings → Connectors → *Add custom connector* → paste `https://mcp.ghostswap.io/mcp`.
+- **Cursor / Windsurf / other `mcp.json`-style clients:**
+
+```json
+{
+  "mcpServers": {
+    "ghostswap": { "url": "https://mcp.ghostswap.io/mcp" }
+  }
+}
+```
+
+Six tools: `list_currencies`, `get_pair`, `validate_address`, `get_quote`, `create_swap`, `get_swap`. Registry id: `io.github.ghostswap1/mcp`. Use the npm package below instead when you want swaps attributed to **your own** partner credential.
+
+</details>
 
 <details open><summary><b>Claude Desktop / Claude Code / claude.ai</b></summary>
 
@@ -325,6 +346,12 @@ ghostswap-agents/
 │   ├── package.json
 │   ├── manifest.json                               ← DXT/MCPB for one-click Claude Desktop
 │   └── README.md
+├── remote-mcp/                                     ← Hosted MCP at mcp.ghostswap.io (Cloudflare Worker)
+│   ├── src/index.ts
+│   └── server.json                                 ← MCP registry entry (io.github.ghostswap1/mcp)
+├── chat/                                           ← GhostSwap Chat at chat.ghostswap.io (Cloudflare Worker)
+│   ├── src/index.ts
+│   └── public/                                     ← index.html, llms.txt, robots.txt, sitemap.xml
 └── gpt-action/
     └── README.md                                   ← Step-by-step for ChatGPT GPT builder
 ```
@@ -396,9 +423,17 @@ Reuse the same `Idempotency-Key` you sent on the first attempt. GhostSwap dedupl
 
 A DEX requires the user to have a wallet, sign every transaction, and pay gas. GhostSwap is non-custodial in the sense that GhostSwap never holds user funds longer than the swap takes, but the user only needs to send a single on-chain transaction to a deposit address. No wallet integration, no signing flow, no gas-fee UX — that's why it's a popular choice for wallets and apps where the swap is a feature, not the product.
 
-### What about regulatory compliance?
+### Does GhostSwap require KYC or an account?
 
-End-users transact with GhostSwap directly through the deposit address. Partners are responsible for their own jurisdiction's compliance posture (terms of service, AML/KYC if their product otherwise requires it, etc.). For high-volume or unusual transaction patterns, GhostSwap may place a swap on `hold` for AML review — the SKILL.md describes how to surface this state to end-users (direct them to <support@ghostswap.io>).
+No. GhostSwap is a no-KYC crypto exchange: end-users need no account, no email and no ID — they send to a one-time deposit address and receive the swapped coins in their own wallet. That covers privacy-coin swaps such as exchanging BTC to XMR (Monero) or BTC to ZEC (Zcash) as well as 1,600+ other coins. Partners set their own product terms for their own users. If a swap ever shows status `hold`, direct the user to <support@ghostswap.io> (see SKILL.md).
+
+### Which coins need a memo or destination tag?
+
+Coins such as XRP, XLM, ATOM, HBAR and TON use a memo / destination tag / payment ID alongside the address. `GET /v1/currencies` marks them with `requiresExtraId: true` (plus a human label in `extraIdName`). Collect the tag and send it as `extraId` on `POST /v1/swaps` — without it the API returns `missing_extra_id` and no swap is created. If the user confirms their wallet has no tag, send `extraIdNotRequired: true`. All three MCP surfaces in this repo support these fields.
+
+### Can I show GhostSwap rates on my site without an API key?
+
+Yes — `GET https://partners-api.ghostswap.io/v1/public/quote?from=btc&to=xmr&amount=0.05` returns the standard public display rate with no credential. It's CORS-open and limited to 60 requests/minute per IP, so cache results for 10–30 s. Use the authenticated `POST /v1/quotes` + `POST /v1/swaps` to actually execute swaps.
 
 ### How do I report a security issue?
 
@@ -419,6 +454,8 @@ A server-to-server REST API for non-custodial crypto swaps. End-users send funds
 | **Idempotency** | `Idempotency-Key` header required on `POST /v1/swaps` |
 | **Status polling** | `GET /v1/swaps/{id}` — terminal: `finished` / `failed` / `refunded` / `overdue` / `expired` |
 | **Refund** | Optional for float, required for fixed |
+| **Memo / tag coins** | Send `extraId` when `requiresExtraId: true` (XRP, XLM, ATOM, HBAR, TON…) |
+| **Public quote** | `GET /v1/public/quote` — no key, 60 req/min/IP, for price widgets & comparison sites |
 | **Payouts** | USDT, $100 minimum, 1–3 business-day admin review |
 
 Full reference: <https://partners.ghostswap.io/docs>.
@@ -467,6 +504,8 @@ The OpenAPI spec at <https://partners-api.ghostswap.io/openapi.json> always refl
 | Surface | URL |
 |---|---|
 | 🔗 Live docs | <https://partners.ghostswap.io/docs> |
+| 🔗 Hosted MCP (no key) | <https://mcp.ghostswap.io/mcp> |
+| 💬 GhostSwap Chat | <https://chat.ghostswap.io> |
 | 🔗 OpenAPI 3.1 spec (JSON) | <https://partners-api.ghostswap.io/openapi.json> |
 | 🔗 OpenAPI 3.1 spec (YAML) | <https://partners-api.ghostswap.io/openapi.yaml> |
 | 🔗 Anthropic Agent Skill | <https://partners.ghostswap.io/skill.md> |

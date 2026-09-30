@@ -45,7 +45,7 @@ async function gsRaw(env: Env, path: string, opts: FetchOptions = {}): Promise<{
     Authorization: `Bearer ${pk}:${sk}`,
     "Content-Type": "application/json",
     Accept: "application/json",
-    "User-Agent": "@ghostswapio/mcp-worker/1.0.0",
+    "User-Agent": "@ghostswapio/mcp-worker/1.2.0",
   };
   if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
   const res = await fetch(`${base}${path}`, {
@@ -109,7 +109,7 @@ const fail = (e: unknown) => ({
 });
 
 export class GhostSwapMCP extends McpAgent {
-  server = new McpServer({ name: "ghostswap-partners", version: "1.0.0" });
+  server = new McpServer({ name: "ghostswap-partners", version: "1.2.0" });
 
   async init() {
     const env = this.env as unknown as Env;
@@ -118,7 +118,7 @@ export class GhostSwapMCP extends McpAgent {
       "list_currencies",
       {
         description:
-          'List all coins GhostSwap supports for swapping (1,600+ assets). Use lite=true for just an array of tickers (e.g. ["btc","eth","ltc"]).',
+          'List all coins GhostSwap supports for swapping (1,600+ assets). Use lite=true for just an array of tickers (e.g. ["btc","eth","ltc"]). Full metadata includes requiresExtraId + extraIdName: when the TO coin has requiresExtraId=true (XRP, XLM, ATOM, HBAR, TON…), collect the memo / destination tag before create_swap.',
         inputSchema: { lite: z.boolean().optional().describe("Return just tickers (default false — full metadata).") },
       },
       async ({ lite }) => {
@@ -193,15 +193,29 @@ export class GhostSwapMCP extends McpAgent {
       "create_swap",
       {
         description:
-          'Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user\'s own wallet on the FROM chain). IDEMPOTENT — pass a stable idempotencyKey (UUID v4) per logical "Confirm" and reuse it on retries; never create the same swap twice. If a result has stop:true, relay its neutral userMessage and STOP — never tell the user an address is flagged/screened, never name an address, never suggest "try a different address", never retry.',
+          'Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user\'s own wallet on the FROM chain). If the TO coin needs a memo / destination tag (requiresExtraId on list_currencies), pass it as extraId — without it the API returns missing_extra_id; only if the user confirms their wallet has no tag, send extraIdNotRequired=true. IDEMPOTENT — pass a stable idempotencyKey (UUID v4) per logical "Confirm" and reuse it on retries; never create the same swap twice. If a result has stop:true, relay its neutral userMessage and STOP — never tell the user an address is flagged/screened, never name an address, never suggest "try a different address", never retry.',
         inputSchema: {
           from: z.string(),
           to: z.string(),
           amountFrom: z.string().describe("Decimal as STRING."),
           address: z.string().describe('Where the user receives the "to" currency.'),
+          extraId: z
+            .string()
+            .max(256)
+            .optional()
+            .describe("Memo / destination tag / payment ID for `address`. REQUIRED when the TO coin has requiresExtraId=true (e.g. an exchange deposit address on XRP, XLM, ATOM). Ask the user — never guess."),
+          extraIdNotRequired: z
+            .boolean()
+            .optional()
+            .describe("Set true ONLY when the user confirms their TO-coin wallet genuinely has no memo / tag (e.g. self-custody). Use instead of omitting extraId."),
           refundAddress: z
             .string()
             .describe("REQUIRED — the user's OWN wallet on the FROM chain (the wallet they're sending from); refunds return here if the swap can't complete."),
+          refundExtraId: z
+            .string()
+            .max(256)
+            .optional()
+            .describe("Memo / tag for refundAddress when the FROM coin requires one — otherwise a refund cannot be credited."),
           mode: z.enum(["float", "fixed"]).optional(),
           rateId: z.string().optional().describe("Required when mode=fixed; from get_quote."),
           idempotencyKey: z

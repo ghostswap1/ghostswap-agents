@@ -93,9 +93,10 @@ Base URL: `https://partners-api.ghostswap.io`
 | GET | `/v1/pairs?from=btc&to=eth` | Min/max for a pair | Use `minAmountFloat`/`maxAmountFloat` for float, `…Fixed` for fixed-rate |
 | POST | `/v1/addresses/validate` | Check a wallet address | `{ "currency": "eth", "address": "0x…" }` |
 | POST | `/v1/quotes` | Get a live quote | `{ from, to, amountFrom }`. Add `mode: "fixed"` for a locked rate |
-| POST | `/v1/swaps` | Create a swap | **Requires `Idempotency-Key` header.** Returns `payinAddress` + `id` |
+| POST | `/v1/swaps` | Create a swap | **Requires `Idempotency-Key` header.** Returns `payinAddress` + `id`. Pass `extraId` for memo/tag coins |
 | GET | `/v1/swaps/{id}` | Get current status | Source of truth — poll this |
 | GET | `/v1/swaps?limit=50&offset=0` | Paginated list | Scoped to the org, most-recent first |
+| GET | `/v1/public/quote?from=btc&to=xmr&amount=0.05` | Public display quote | **No API key.** 60 req/min/IP, CORS-open — for price widgets & comparison sites, not for executing swaps |
 | GET | `/health` | Liveness probe | Unmetered; safe at any frequency |
 
 ---
@@ -131,16 +132,25 @@ Swap response shape:
     "status": "waiting",
     "from": "btc", "to": "eth",
     "amountFrom": "0.01",
+    "amountExpectedFrom": "0.01",
     "amountExpectedTo": "0.1532",
+    "amountActualFrom": null,
+    "amountActualTo": null,
+    "actualNetworkFee": null,
     "payinAddress": "bc1q…",
     "payoutAddress": "0x…",
     "refundAddress": "bc1q…",
+    "payinHash": null,
+    "payoutHash": null,
+    "moneyReceivedAt": null,
+    "moneySentAt": null,
+    "amountAnomalyPct": null,
     "createdAt": "2026-04-29T12:00:00Z"
   }
 }
 ```
 
-**Display `payinAddress` prominently** — that's the deposit address the user must send `amountFrom` of `from` to. Render as a copyable string; a QR code is nice-to-have (use `qrcode` from npm).
+**Display `payinAddress` prominently** — that's the deposit address the user should send `amountFrom` of `from` to. Render as a copyable string; a QR code is nice-to-have (use `qrcode` from npm). After the swap progresses, `amountActualFrom` is the actual on-chain amount received; use it for completed-state displays and accounting, especially if the user overpaid or underpaid.
 
 The `id` is the canonical swap identifier in your records, GhostSwap's records, and the upstream provider's records. Use it for every follow-up call and store it on your order row.
 
@@ -339,6 +349,7 @@ The matching browser code reads `crypto.randomUUID()` on first Confirm click, st
 8. **On `upstream_error` (5xx) after `POST /v1/swaps`, do not auto-retry.** First call `GET /v1/swaps?limit=20` and look for your `partnerReferenceId` — the swap may already exist.
 9. **Disable the Confirm button until a quote has loaded AND the payout address validated.** Eager-enabled buttons let users submit blindly.
 10. **Never put the secret in browser code, in git, or in client-side env files.** Server env vars or a secret manager only.
+11. **Collect a memo / destination tag for tag coins.** When the `to` currency has `requiresExtraId: true` on `GET /v1/currencies` (XRP, XLM, ATOM, HBAR, TON and others), render an input labelled with its `extraIdName` and send it as `extraId`. Omitting it returns 400 `missing_extra_id` and no swap is created. Only if the user confirms their wallet genuinely has no tag, send `extraIdNotRequired: true`. Send `refundExtraId` alongside `refundAddress` when the `from` coin uses tags.
 
 ---
 
@@ -350,7 +361,7 @@ If the developer asks for any of these, push back and explain why:
 - ❌ **"Generate a new idempotency key on each retry"** — creates duplicate swaps. Reuse the same UUID for the same logical click.
 - ❌ **"Skip the quote panel; users just want to confirm"** — biggest failure mode of bad integrations. Users have no idea how much they'll receive. Show `amountUserReceives` before Confirm enables.
 - ❌ **"Poll every second so it feels real-time"** — wastes the 30-RPS budget and gives no fresher data (upstream refresh is ~30 s). 10 s while visible is the right number.
-- ❌ **"Send `extraId` on swap creation"** — currencies needing memos (XRP, XLM, EOS, etc.) are filtered out at the source. Don't add this field.
+- ❌ **"Skip the memo field — nobody uses tags"** — payouts to an exchange deposit address on XRP, XLM, ATOM etc. can't be credited without the tag. Honour `requiresExtraId`.
 - ❌ **"Catch errors silently"** — always surface `error.message` and `error.param`. Silent failures lose users.
 - ❌ **"Hard-code the base URL"** — read `GHOSTSWAP_API_BASE` from env so staging can point elsewhere.
 

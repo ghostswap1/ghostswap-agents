@@ -78,6 +78,7 @@ paths:
       description: |
         Returns every supported coin with metadata (full name, blockchain, precision, icon URL, enabled flags).
         Use `?lite=true` to get just an array of tickers — much smaller payload for autocomplete UIs.
+        Use returned canonical tickers for quote/swap requests. Example: USDT on TRON is `usdtrx`; common aliases like `usdttrx` are accepted but normalized.
       tags: [currencies]
       x-openai-isConsequential: false
       parameters:
@@ -113,12 +114,12 @@ paths:
         - name: from
           in: query
           required: true
-          description: Source currency ticker (lowercase). E.g. `btc`.
+          description: Source currency ticker (lowercase canonical ticker from `/v1/currencies`). E.g. `btc`.
           schema: { type: string, example: btc }
         - name: to
           in: query
           required: true
-          description: Destination currency ticker (lowercase). E.g. `eth`.
+          description: Destination currency ticker (lowercase canonical ticker from `/v1/currencies`). E.g. `eth`.
           schema: { type: string, example: eth }
       responses:
         '200':
@@ -176,6 +177,52 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '429':
           $ref: '#/components/responses/RateLimited'
+
+  /v1/public/quote:
+    get:
+      operationId: getPublicQuote
+      summary: Public price quote (no API key)
+      description: |
+        Unauthenticated, rate-limited quote for price-display and comparison sites.
+        Returns GhostSwap's standard public-display rate (service fee already included).
+        No Bearer key required. For executing swaps, use the authenticated
+        `POST /v1/quotes` + `POST /v1/swaps`.
+
+        Limits: 60 requests/minute/IP (standard `RateLimit-*` headers). Responses set
+        `Cache-Control: public, max-age=10`; cache results 10-30s rather than calling per
+        page view. CORS-open (`Access-Control-Allow-Origin: *`).
+      tags: [quotes]
+      x-openai-isConsequential: false
+      security: []
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema: { type: string }
+          description: Source ticker (canonical from `/v1/currencies`, e.g. `xmr`). Aliases like `usdttrx` are normalized.
+        - in: query
+          name: to
+          required: true
+          schema: { type: string }
+          description: Destination ticker (e.g. `usdtrx`, `usdt20`, `btc`).
+        - in: query
+          name: amount
+          required: false
+          schema: { type: string, default: '1' }
+          description: Source amount as a decimal string. Defaults to `1`.
+      responses:
+        '200':
+          description: Public quote (standard public-display rate)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Public quote service temporarily unavailable.
 
   /v1/quotes:
     post:
@@ -346,7 +393,10 @@ components:
     Currency:
       type: object
       properties:
-        ticker: { type: string, example: btc }
+        ticker:
+          type: string
+          example: btc
+          description: 'Canonical ticker to send back to quote/swap endpoints. Example: TRON-USDT is `usdtrx`.'
         fullName: { type: string, example: Bitcoin }
         enabled: { type: boolean }
         enabledFrom: { type: boolean }
@@ -357,6 +407,19 @@ components:
         image:
           type: [string, 'null']
           description: 'Icon URL; may be null — render a fallback (initial-letter circle).'
+        requiresExtraId:
+          type: boolean
+          description: >
+            True when this currency needs a memo / destination tag / payment ID
+            alongside the address. When true you MUST collect one and pass it as
+            extraId on POST /v1/swaps.
+        extraIdName:
+          type: [string, 'null']
+          example: 'Memo'
+          description: >
+            Human label for the tag on this chain ("Memo", "Destination Tag",
+            "Payment ID"). Null when the currency does not need one. Use it to
+            label your input field.
 
     CurrenciesFullResponse:
       type: object
@@ -390,8 +453,14 @@ components:
       type: object
       required: [from, to, amountFrom]
       properties:
-        from: { type: string, example: btc }
-        to: { type: string, example: eth }
+        from:
+          type: string
+          example: btc
+          description: Canonical source ticker from `/v1/currencies`.
+        to:
+          type: string
+          example: eth
+          description: Canonical destination ticker from `/v1/currencies`.
         amountFrom:
           type: string
           description: Source amount as a decimal string. Strings (not floats) preserve precision.
@@ -459,6 +528,32 @@ components:
         rateId:
           type: string
           description: 'Required when mode=fixed. The token from a fixed quote.'
+        extraId:
+          type: string
+          maxLength: 256
+          example: '1234567890'
+          description: >
+            Memo / destination tag / payment ID for the destination address.
+            REQUIRED when the `to` currency reports requiresExtraId: true on
+            GET /v1/currencies (XRP, XLM, ATOM, HBAR and others). Omitting it
+            returns 400 missing_extra_id and the swap is not created, because a
+            payout sent without the tag cannot be credited to the recipient.
+        refundExtraId:
+          type: string
+          maxLength: 256
+          description: >
+            Memo / destination tag for refundAddress, when the `from` currency
+            requires one. Optional, but send it whenever you send a
+            refundAddress on a tag-requiring chain — otherwise a refund cannot
+            be credited back to the user.
+        extraIdNotRequired:
+          type: boolean
+          description: >
+            Set true to confirm the destination genuinely has no memo or tag,
+            for example a self-custody wallet. Only meaningful when the `to`
+            currency reports requiresExtraId: true. Use this instead of omitting
+            extraId, so "there is no tag" and "I forgot the tag" cannot look the
+            same to us.
 
     Swap:
       type: object
@@ -473,13 +568,22 @@ components:
             `hold` = AML/KYC review (user-facing — direct end-user to support@ghostswap.io; slow polling to 5 min).
         from: { type: string }
         to: { type: string }
-        amountFrom: { type: string }
+        amountFrom: { type: string, description: 'Requested deposit amount from swap creation. This stays immutable for audit/debugging.' }
+        amountExpectedFrom: { type: string, description: 'Alias of amountFrom: the expected/requested deposit amount.' }
         amountExpectedTo: { type: string }
+        amountActualFrom: { type: [string, 'null'], description: 'Actual amount received on-chain, populated after upstream reports it. Financial accounting uses this value.' }
+        amountActualTo: { type: [string, 'null'], description: 'Actual payout amount sent, populated after upstream reports it.' }
         networkFee: { type: [string, 'null'] }
+        actualNetworkFee: { type: [string, 'null'], description: 'Actual network fee charged, populated after upstream reports it.' }
         rate: { type: [string, 'null'] }
-        payinAddress: { type: string, description: 'Display to user — they send amountFrom of `from` to this address.' }
+        payinAddress: { type: string, description: 'Display to user — they should send amountFrom of `from` to this address.' }
         payoutAddress: { type: string }
         refundAddress: { type: [string, 'null'] }
+        payinHash: { type: [string, 'null'] }
+        payoutHash: { type: [string, 'null'] }
+        moneyReceivedAt: { type: [string, 'null'], format: date-time }
+        moneySentAt: { type: [string, 'null'], format: date-time }
+        amountAnomalyPct: { type: [string, 'null'], description: 'Percent delta between actual and requested amount: ((amountActualFrom - amountFrom) / amountFrom) * 100.' }
         partnerReferenceId: { type: [string, 'null'] }
         mode: { type: string, enum: [float, fixed] }
         payTill: { type: [string, 'null'], format: date-time, description: 'Deadline for fixed-rate deposits (null for float).' }

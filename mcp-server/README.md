@@ -12,7 +12,7 @@ Drop the GhostSwap Partners API into Claude Desktop, Cursor, Windsurf, Continue.
 | `get_pair` | `GET /v1/pairs` | Min/max for a (from, to) pair |
 | `validate_address` | `POST /v1/addresses/validate` | Pre-check a wallet address |
 | `get_quote` | `POST /v1/quotes` | Live rate quote |
-| `create_swap` | `POST /v1/swaps` | Create a swap (auto-generates `Idempotency-Key` if you don't pass one) |
+| `create_swap` | `POST /v1/swaps` | Create a swap (auto-generates `Idempotency-Key` if you don't pass one; accepts `extraId` / `refundExtraId` for memo / tag coins) |
 | `get_swap` | `GET /v1/swaps/{id}` | Poll status |
 | `list_swaps` | `GET /v1/swaps` | List swaps for the org |
 

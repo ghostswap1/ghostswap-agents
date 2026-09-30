@@ -3,7 +3,7 @@
   "name": "io.github.ghostswap1/mcp",
   "title": "GhostSwap",
   "description": "GhostSwap — non-custodial crypto swaps across 1,600+ coins.",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "repository": {
     "url": "https://github.com/ghostswap1/ghostswap-agents",
     "source": "github"

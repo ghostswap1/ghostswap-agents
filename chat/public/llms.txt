@@ -5,10 +5,10 @@
 GhostSwap Chat (https://chat.ghostswap.io) is a free, zero-setup AI assistant that quotes live rates, validates wallet addresses, creates non-custodial crypto-to-crypto swaps, and tracks them to completion — entirely through conversation. It is a non-custodial instant exchange: the user sends to a one-time deposit address and the payout goes directly to the destination wallet, with no account, no email, and no KYC.
 
 ## What it does
-- Quote live exchange rates across 1,600+ coins (Bitcoin/BTC, Ethereum/ETH, Monero/XMR, Litecoin/LTC, and more)
+- Quote live exchange rates across 1,600+ coins (Bitcoin/BTC, Ethereum/ETH, Monero/XMR, Zcash/ZEC, Litecoin/LTC, and more)
 - Non-custodial swaps — e.g. swap BTC to XMR (Monero) with payouts straight to your own wallet
 - No account, no email, no KYC — an anonymous, privacy-first crypto exchange
-- Idempotent, screened order creation; always set a refund address
+- Idempotent order creation; always set a refund address (and a memo / destination tag for XRP, XLM and other tag coins)
 
 ## How to use it
 Open https://chat.ghostswap.io and type, for example:
